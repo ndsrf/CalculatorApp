@@ -10,9 +10,9 @@ The application logic is intentionally simple so the focus stays on the engineer
 
 ```mermaid
 flowchart LR
-    A["1. Discover & Spec<br/>/grill-with-docs · OpenSpec · Glossary"] --> B["2. Guardrailed Build<br/>pre-tool-guard · depcruise · ESLint"]
+    A["1. Explore & Propose<br/>OpenSpec · /grill-with-docs · Glossary"] --> B["2. Guardrailed Apply<br/>pre-tool-guard · depcruise · ESLint"]
     B --> C["3. Multi-Layer Verify<br/>Unit · fast-check Model · UI Fuzz · calc-verify"]
-    C --> D["4. Two-Axis Review<br/>/code-review (Standards + Spec)"]
+    C --> D["4. Review & Archive<br/>/code-review (Standards + Spec) · OpenSpec"]
     D --> E["5. Evals & Telemetry<br/>Promptfoo · OTel · LoopBudget"]
     E -->|"harvest:trace → golden-dataset.yaml"| A
 ```
@@ -132,122 +132,206 @@ npx playwright install chromium
 
 ---
 
-## Step-by-Step Workflow Walkthrough
+## Step-by-Step Workflow Walkthrough: Adding Square Root (`√` / `sqrt`)
 
-### Phase 1: Context, Discovery Skills & Governance
+To see how all the pieces fit together in practice, suppose we want to add a real new feature to the Calculator App: **Square Root**—a `√` button on the **Standard Keypad** for `@persona:casual-user` and `sqrt(...)` support in the **Expression Input** for `@persona:power-user` (explicitly anticipated in [`docs/adr/001-expression-parser.md`](docs/adr/001-expression-parser.md)).
 
-1. **Plan & align with `/grill-with-docs`** (installed in `.agents/skills/grill-with-docs/SKILL.md`, with repo path mappings in `AGENTS.md`) before writing code so domain terms land in `docs/glossary.md`, hard choices become ADRs in `docs/adr/`, and specs update in place under `openspec/specs/`.
-2. **Lint documentation and 1:1 OpenSpec parity:**
+> **Note:** Every shell command below that isn't commented out runs directly against the current repository right now. Commands prefixed with `# After implementing Square Root:` illustrate the exact checks you would add once you apply the change.
+
+### Step 1 — Explore (OpenSpec `explore` + Mandatory Context)
+
+**Run by:** Developer + AI agent (interactive session).
+
+1. Read the mandatory pre-change truth graph defined in [`AGENTS.md`](AGENTS.md): [`docs/feature-map.md`](docs/feature-map.md), [`docs/glossary.md`](docs/glossary.md), [`docs/personas.md`](docs/personas.md), [`docs/adr/001-expression-parser.md`](docs/adr/001-expression-parser.md), and the 3 living specs under [`openspec/specs/`](openspec/specs/).
+2. Run an **OpenSpec Explore** session (e.g., `/opsx:explore` if using the OpenSpec workflow in your agent, or an exploratory prompt before creating any change files) to map where Square Root belongs:
+   - [`docs/adr/001-expression-parser.md`](docs/adr/001-expression-parser.md) already states that functions like `sqrt` must extend the safe recursive-descent grammar in [`src/core/parser.ts`](src/core/parser.ts)—never `eval()`.
+   - Square Root extends the three existing 1:1 Feature Map sections (`keypad`, `expression-input`, `error-handling`), so we **update those existing specs in place** instead of inventing an unmapped folder under `openspec/specs/`.
+
+**What you get:** A clear impact map (`src/core/parser.ts`, `src/core/calculator.ts`, `src/ui/calculator-ui.ts`, `docs/feature-map.md`, `docs/glossary.md`, and the 3 existing specs) with zero premature code written.
+
+---
+
+### Step 2 — Propose (OpenSpec `propose`)
+
+**Run by:** Developer + AI agent (e.g., `/opsx:propose add-square-root`).
+
+Draft a scoped change bundle under `openspec/changes/add-square-root/` following [`openspec/config.yaml`](openspec/config.yaml) (`schema: spec-driven`):
+
+- `openspec/changes/add-square-root/proposal.md` — Problem statement, user stories for `@persona:casual-user` (`√` key) and `@persona:power-user` (`sqrt(...)`), and non-goals.
+- `openspec/changes/add-square-root/design.md` — Parser grammar rule for `sqrt(<expr>)`, pure `pressSquareRoot(state)` state transition, and canonical selector `[data-action="sqrt"]` in `docs/feature-map.md`.
+- `openspec/changes/add-square-root/specs/` — Requirement deltas targeting the existing 1:1 specs (`keypad/spec.md`, `expression-input/spec.md`, `error-handling/spec.md`).
+- `openspec/changes/add-square-root/tasks.md` — Ordered implementation and verification checklist.
+
+**What you get:** A concrete, reviewable change package in `openspec/changes/add-square-root/` that separates _what we are building_ from _how we code it_.
+
+---
+
+### Step 3 — Clarify the Proposal with `/grill-with-docs`
+
+**Run by:** Developer + AI agent (`/grill-with-docs`, installed in [`.agents/skills/grill-with-docs/SKILL.md`](.agents/skills/grill-with-docs/SKILL.md) with repo path mappings in [`AGENTS.md`](AGENTS.md)).
+
+Before writing code, run `/grill-with-docs` **against the `add-square-root` proposal** to stress-test assumptions and eliminate ambiguity:
+
+- **Edge cases surfaced by `grilling`:**
+  - _What happens on `sqrt(-9)` or pressing `√` on a negative display value?_ → Enter **Error State**, show a deterministic message in **Primary Readout** (never `NaN`), disable operator keys / **Expression Input** / **Submit Expression**, and recover exclusively via **All Clear (AC)**.
+  - _What happens mid-calculation (e.g., `5`, `add`, `9`, `√`, `equals`)?_ → Apply `√` only to the active entry (`9 → 3`) while preserving the pending accumulator (`5 + 3 = 8`), consistent with **Clear Entry (CE)**.
+  - _What about nested calls like `sqrt(sqrt(16))` or `sqrt(9 + 7)`?_ → Supported automatically if `sqrt(...)` parses as a unary/primary expression in `src/core/parser.ts`.
+- **Canonical docs updated inline by `domain-modeling`:**
+  - Add **Square Root (√)** (`[data-action="sqrt"]`) to [`docs/glossary.md`](docs/glossary.md) (and ban synonyms like `radical button` or `root key`) and [`docs/feature-map.md`](docs/feature-map.md).
+  - Add `docs/adr/002-unary-math-functions.md` if function syntax introduces a reusable trade-off.
+  - Fold the resolved edge cases back into `openspec/changes/add-square-root/specs/`.
+
+**Run locally as a developer to validate governance:**
+
+```bash
+# Verify zero banned synonyms, valid @persona: tags, and 1:1 Feature Map ↔ OpenSpec parity
+npm run lint:docs
+
+# Test the standalone pre-tool guardrail hook (also accepts JSON stdin with "file_path" in agent PreToolUse configs)
+.agent/hooks/pre-tool-guard.sh openspec/specs/unmapped-feature/spec.md   # exit 1 (blocked: orphan spec folder)
+.agent/hooks/pre-tool-guard.sh openspec/specs/keypad/spec.md             # exit 0 (allowed: 1:1 Feature Map spec)
+```
+
+**What you get:** `Doc lint passed (...)`, zero unmapped spec folders, and an airtight proposal ready for implementation.
+
+---
+
+### Step 4 — Apply the Change (OpenSpec `apply` + Hard Guardrails)
+
+**Run by:** Developer + AI agent (e.g., `/opsx:apply add-square-root`).
+
+Execute `openspec/changes/add-square-root/tasks.md` inside the repository's hard architectural boundaries:
+
+1. **Pure logic (`src/core/`):** Add `sqrt(...)` tokenization/parsing in [`src/core/parser.ts`](src/core/parser.ts), add `pressSquareRoot` and its transition entry in `CALCULATOR_STATE_TRANSITIONS` in [`src/core/calculator.ts`](src/core/calculator.ts), and export it via [`src/core/index.ts`](src/core/index.ts).
+2. **Thin UI (`src/ui/`):** Add `<button type="button" data-action="sqrt">√</button>` in [`src/ui/calculator-ui.ts`](src/ui/calculator-ui.ts) importing only from `src/core/index.ts`.
+3. **Tests & state chart:** Add unit tests in `src/core/parser.test.ts` and `src/core/calculator.test.ts`, add a `SquareRootCommand` to `src/core/calculator.model.test.ts`, and regenerate `docs/state-chart.md`.
+4. **Verification CLI contract (`tools/calc-verify/`):** Because we added `[data-action="sqrt"]` to `docs/feature-map.md`, `tools/calc-verify/tests/contract.test.ts` will fail until `sqrt` is registered in `PRESSABLE_KEY_SELECTORS`. Updating `tools/calc-verify/index.ts` requires explicit human authorization (`ALLOW_VERIFY_EDIT=1`) locally and human `CODEOWNERS` approval in Git.
+
+**Run locally as a developer:**
+
+```bash
+# Pre-tool guardrail: editing calc-verify is blocked unless explicitly authorized
+.agent/hooks/pre-tool-guard.sh tools/calc-verify/index.ts                     # exit 1 (blocked)
+ALLOW_VERIFY_EDIT=1 .agent/hooks/pre-tool-guard.sh tools/calc-verify/index.ts # exit 0 (allowed)
+
+# Verify dependency boundaries (src/core purity, barrel-only src/ui imports, no eval(), no DOM globals) & dead code
+npm run lint:arch
+npm run lint:deadcode
+
+# Regenerate docs/state-chart.md from CALCULATOR_STATE_TRANSITIONS and verify zero drift
+npm run docs:state-chart
+git diff --exit-code docs/state-chart.md
+
+# Typecheck and build production bundle
+npm run build
+```
+
+**What you get:** Zero `dependency-cruiser` violations, zero ESLint errors/warnings, zero `knip` dead exports/files, an updated Mermaid state chart in [`docs/state-chart.md`](docs/state-chart.md), and a clean Vite production bundle.
+
+---
+
+### Step 5 — Multi-Layer Verification & Visual Evidence
+
+**Run by:** Developer locally (and re-run automatically by CI).
+
+1. **Run the automated test pyramid** (or `npm test` to run all four suites at once):
    ```bash
+   # Pure parser, state-machine phases, and circuit breaker unit tests
+   npm run test:unit
+
+   # 200 randomized fast-check command sequences checking state-machine invariants (zero NaN/Infinity)
+   npm run test:model
+
+   # Feature Map selector contract test + Playwright calc-verify integration tests (broken-calc.html, PNG, trace ZIP)
+   npm run test:cli
+
+   # Real Chromium + fast-check UI fuzzing (random clicks, malformed expressions, Enter/CE/AC recovery)
+   npm run test:fuzz
+   ```
+2. **Capture live verification snapshots & visual artifacts for the PR:** Start the Vite dev server in one terminal (`npm run dev`), then run `calc-verify` in a second terminal using Feature Map names (never raw CSS selectors):
+   ```bash
+   # Runnable right now — Division by zero via Standard Keypad + PNG screenshot & Playwright trace ZIP
+   npm run verify:cli -- press 8 divide 0 equals --snapshot --screenshot traces/div-zero.png --trace traces/div-zero.zip
+
+   # Runnable right now — Parenthesized expression via Expression Input
+   npm run verify:cli -- type-expression "(10 + 5) * 2 - 4 / 2" --submit --snapshot
+
+   # After implementing Square Root, capture PR evidence for both personas:
+   # npm run verify:cli -- press 9 sqrt --snapshot --screenshot traces/sqrt-9.png --trace traces/sqrt-9.zip
+   # npm run verify:cli -- type-expression "sqrt(16) + 2" --submit --snapshot
+   ```
+
+**What you get:** Passing unit/model/contract/fuzz tests plus deterministic JSON snapshots (`status`, `ui_state`, `console_errors`), PNG screenshots, and Playwright trace ZIPs (`traces/last-failure-trace.zip` is auto-saved on any failure) ready to attach to [`.github/pull_request_template.md`](.github/pull_request_template.md).
+
+---
+
+### Step 6 — Two-Axis Review (`/code-review`) & OpenSpec Archive
+
+**Run by:** Developer + AI agent before opening/merging the PR.
+
+1. **Run `/code-review`** (installed in [`.agents/skills/code-review/SKILL.md`](.agents/skills/code-review/SKILL.md)) against `main` to spawn two fresh parallel subagents side by side:
+   - **Standards axis:** Audits the diff against [`AGENTS.md`](AGENTS.md), `docs/adr/`, [`.dependency-cruiser.cjs`](.dependency-cruiser.cjs), [`eslint.config.js`](eslint.config.js), and Fowler's code-smell baseline.
+   - **Spec axis:** Audits the diff against `openspec/specs/` and [`docs/feature-map.md`](docs/feature-map.md) for missing requirements, scope creep, or subtle edge-case bugs (for example, forgetting to lock `√` in Error State).
+2. **Archive the OpenSpec change** (e.g., `/opsx:archive add-square-root`):
+   - Merge the approved delta specs from `openspec/changes/add-square-root/specs/` into the canonical 1:1 specs (`openspec/specs/{keypad,expression-input,error-handling}/spec.md`).
+   - Move `openspec/changes/add-square-root/` into `openspec/changes/archive/` (excluded from default agent context by `.cursorignore`/`.claudeignore`).
+3. **Format and re-verify docs before committing:**
+   ```bash
+   npm run format
+   npm run format:check
    npm run lint:docs
    ```
-3. **Test the pre-tool guardrail hook** (a standalone, harness-agnostic script that accepts either a CLI path argument as shown below or JSON stdin with `"file_path"` when wired into an agent's `PreToolUse` hook config):
-   ```bash
-   # Blocked: modifying calc-verify without explicit authorization
-   .agent/hooks/pre-tool-guard.sh tools/calc-verify/index.ts
 
-   # Allowed: explicitly authorized verification CLI change
-   ALLOW_VERIFY_EDIT=1 .agent/hooks/pre-tool-guard.sh tools/calc-verify/index.ts
+**What you get:** Separate Standards and Spec audit reports, updated 1:1 living specs with zero context bloat from completed change folders, and deterministic Prettier formatting.
 
-   # Blocked: orphan spec folder not present in docs/feature-map.md
-   .agent/hooks/pre-tool-guard.sh openspec/specs/unmapped-feature/spec.md
+---
 
-   # Allowed: 1:1 update to an existing Feature Map spec
-   .agent/hooks/pre-tool-guard.sh openspec/specs/keypad/spec.md
-   ```
+### Step 7 — Evals, OpenTelemetry Tracing & Trace-to-Eval Harvesting
 
-### Phase 2: Architectural Linting & Living State Chart
+**Run by:** Developer (when updating prompts/evals or investigating failures) + CI (`npm run eval` on every push/PR).
 
-1. **Verify dependency graph & prescriptive lint rules** (`src/core/` purity, `src/ui/` importing only `src/core/index.ts`, no `tools/` or `evals/` imports in `src/`, `eval()`/`new Function()` banned with ADR 001 guidance, no DOM globals in `src/core/`, and inline comment warnings):
-   ```bash
-   npm run lint:arch
-   ```
-2. **Regenerate the Mermaid state chart** (`docs/state-chart.md`) from `src/core/calculator.ts` and verify zero drift:
-   ```bash
-   npm run docs:state-chart
-   git diff --exit-code docs/state-chart.md
-   ```
-
-### Phase 3: Unit, Model-Based & Browser Fuzz Testing
+If the new Square Root feature also adds a `calc-tester-agent` scenario (e.g., verifying `sqrt(-9)` without leaking selectors), update [`prompts/calc-tester-agent.md`](prompts/calc-tester-agent.md) (allow `sqrt` in allowed keys) and add a test case to [`evals/golden-dataset.yaml`](evals/golden-dataset.yaml).
 
 ```bash
-# Pure parser, state-machine phases, and circuit breaker unit tests
-npm run test:unit
-
-# Randomized fast-check command-sequence model checking
-npm run test:model
-
-# Real Chromium + fast-check UI fuzzing (random clicks, malformed expressions, Enter/CE/AC)
-npm run test:fuzz
-```
-
-### Phase 4: Agent Verification CLI (`calc-verify`) & Visual Artifacts
-
-Start the Vite dev server in one terminal:
-
-```bash
-npm run dev
-```
-
-In a second terminal, run `calc-verify` using Feature Map names (never raw CSS selectors) and optionally capture a PNG screenshot and Playwright trace ZIP (failures also auto-save a trace ZIP to `traces/last-failure-trace.zip`):
-
-```bash
-# Division by zero via Standard Keypad + screenshot & trace artifacts
-npm run verify:cli -- press 8 divide 0 equals --snapshot --screenshot traces/div-zero.png --trace traces/div-zero.zip
-
-# Parenthesized expression via Expression Input
-npm run verify:cli -- type-expression "(10 + 5) * 2 - 4 / 2" --submit --snapshot
-```
-
-Verify the CLI contract against `docs/feature-map.md` and runtime error capture against `tools/calc-verify/fixtures/broken-calc.html`:
-
-```bash
-npm run test:cli
-```
-
-### Phase 5: Two-Axis AI Code Review
-
-Invoke `/code-review` (installed in `.agents/skills/code-review/SKILL.md`) against any branch or commit to run two fresh parallel subagents side by side:
-
-- **Standards axis:** Audits against `AGENTS.md`, `docs/adr/`, `.dependency-cruiser.cjs`, `eslint.config.js`, and Fowler's code-smell baseline.
-- **Spec axis:** Audits against `openspec/specs/` and `docs/feature-map.md` for missing requirements, scope creep, and subtle edge-case bugs.
-
-### Phase 6: Prompt Versioning & Promptfoo Evals
-
-Deterministic assertions (valid `calc-verify` CLI arguments, zero leaked DOM selectors or JSON keys, `cost <= $0.01`, `latency <= 5000ms`) run completely offline with no API key:
-
-```bash
+# 1. Run Promptfoo evals (deterministic + binary safety + cost/latency offline;
+#    copy .env.example to .env and set OPENAI_API_KEY to also run live models + llm-rubric)
 npm run eval
-```
 
-To enable live model evaluation and the `llm-rubric` checks in `evals/promptfooconfig.yaml`, copy `.env.example` to `.env`, set `OPENAI_API_KEY`, and re-run:
+# 2. Emit a real OpenTelemetry span tagged with gen_ai.*, full SHA-256 prompt.sha, outcome.*, and LoopBudget limits
+#    (set OTEL_EXPORTER_OTLP_ENDPOINT in .env to export to an OTLP HTTP collector instead of traces/runs.jsonl)
+npm run trace:demo
+cat traces/runs.jsonl | jq .
 
-```bash
-cp .env.example .env
-# Add OPENAI_API_KEY=...
+# 3. Close the loop: preview & harvest a failing trace into evals/golden-dataset.yaml, then re-run evals
+npm run harvest:trace -- --trace-id sample-fail-001 --file traces/sample-failed-trace.jsonl --dry-run
+npm run harvest:trace -- --trace-id sample-fail-001 --file traces/sample-failed-trace.jsonl
 npm run eval
+
+# Optional: revert the sample edit once you've tried the loop
+git checkout -- evals/golden-dataset.yaml
 ```
 
-### Phase 7: OpenTelemetry Tracing, Circuit Breakers & Trace Harvesting
+**What you get:** 100% passing Promptfoo evals across both routed tiers (`frontier-verifier` + `lightweight-doc-compiler`), structured OTel spans in `traces/runs.jsonl`, and an idempotent regression case added directly from a failing trace.
 
-1. **Emit a real OpenTelemetry span** (tagged with `gen_ai.*`, full SHA-256 `prompt.sha`, `outcome.status`, `outcome.leaked_selector`, `outcome.retried`, `outcome.tool_calls_count`, and `LoopBudget` circuit breaker limits of `maxToolCalls: 5` / `maxTokens: 4000`):
-   ```bash
-   npm run trace:demo
-   cat traces/runs.jsonl | jq .
-   ```
-   _(Set `OTEL_EXPORTER_OTLP_ENDPOINT` in `.env` to stream spans to an OTLP HTTP collector instead of `traces/runs.jsonl`.)_
-2. **Harvest a failing trace into `evals/golden-dataset.yaml`** with `traceId` and `prompt.sha` provenance, then re-run `npm run eval` to verify the closed loop:
-   ```bash
-   # Preview against the included sample failing trace
-   npm run harvest:trace -- --trace-id sample-fail-001 --file traces/sample-failed-trace.jsonl --dry-run
+---
 
-   # Append the regression test case into evals/golden-dataset.yaml and re-run evals
-   npm run harvest:trace -- --trace-id sample-fail-001 --file traces/sample-failed-trace.jsonl
-   npm run eval
+### Who Runs What: Developer vs. CI
 
-   # Optional: revert the sample edit once you've tried the loop
-   git checkout -- evals/golden-dataset.yaml
-   ```
+| Stage / Check                                                                              | Developer (Local) | CI (`.github/workflows/ci.yml`) | Output / Gate                                                                          |
+| ------------------------------------------------------------------------------------------ | :---------------: | :-----------------------------: | -------------------------------------------------------------------------------------- |
+| OpenSpec `explore` → `propose` → `/grill-with-docs` → `apply` → `/code-review` → `archive` |        Yes        |                —                | Approved proposal, Glossary/ADR updates, 1:1 living specs, and two-axis review report. |
+| `.agent/hooks/pre-tool-guard.sh` (`ALLOW_VERIFY_EDIT=1`)                                   |        Yes        |                —                | Blocks accidental edits to `tools/calc-verify/` or unmapped `openspec/specs/` folders. |
+| `npm run dev` + `npm run verify:cli -- ... --snapshot --screenshot --trace`                |        Yes        |                —                | JSON UI snapshot, PNG screenshot, and Playwright trace ZIP for PR evidence.            |
+| `npm run trace:demo` & `npm run harvest:trace`                                             |        Yes        |                —                | Local OTel spans (`traces/runs.jsonl`) and harvested regression tests in golden suite. |
+| `npm run format`                                                                           |        Yes        |                —                | Auto-formats files with Prettier before committing.                                    |
+| `npm run format:check`                                                                     |     Optional      |               Yes               | Fails PR if any file drifts from `.prettierrc`.                                        |
+| `npm run lint:docs`                                                                        |        Yes        |               Yes               | Fails PR on banned glossary synonyms, unknown `@persona:`, or broken 1:1 spec parity.  |
+| `npm run lint:arch` & `npm run lint:deadcode`                                              |        Yes        |               Yes               | Fails PR on dependency boundary violations, `eval()`/DOM leaks in `core/`, dead code.  |
+| `npm run docs:state-chart && git diff --exit-code docs/state-chart.md`                     |        Yes        |               Yes               | Fails PR if `docs/state-chart.md` drifts from `CALCULATOR_STATE_TRANSITIONS`.          |
+| `npm run build`                                                                            |        Yes        |               Yes               | Fails PR on TypeScript type errors or Vite bundling errors.                            |
+| `npm run test:unit`, `test:model`, `test:cli`, `test:fuzz`                                 |        Yes        |               Yes               | Fails PR on logic, invariant, Feature Map contract, runtime error, or UI fuzz failure. |
+| `npm run eval`                                                                             |        Yes        |               Yes               | Fails PR on CLI arg errors, selector leaks, binary `safety`, cost/latency, or rubric.  |
+| `.github/CODEOWNERS` + `.github/pull_request_template.md`                                  |   PR Checklist    |          GitHub Rules           | Requires human review on `tools/calc-verify/`, `evals/`, `scripts/`, hooks, and CI.    |
 
 ---
 
