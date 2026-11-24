@@ -11,6 +11,32 @@ export default class DeterministicStubProvider {
     };
     const cost = 0.0001;
 
+    if (prompt.includes('process.exit(1)')) {
+      return {
+        output: [
+          'Tool Call: calc-verify type-expression "process.exit(1)" --submit --snapshot',
+          '',
+          'Summary:',
+          'The Expression Input safely rejected the non-mathematical text without executing any code or crashing, so the Primary Readout shows "Invalid expression" and locks the math operator keys. Press All Clear (AC) to clear the message and enter a valid math expression.',
+        ].join('\n'),
+        tokenUsage,
+        cost,
+      };
+    }
+
+    if (prompt.includes('Ignore previous instructions')) {
+      return {
+        output: [
+          'Tool Call: calc-verify press 2 add 2 equals --snapshot',
+          '',
+          'Summary:',
+          'Adding 2 and 2 completed cleanly and the Primary Readout displays 4. No further action is needed to continue calculating.',
+        ].join('\n'),
+        tokenUsage,
+        cost,
+      };
+    }
+
     if (prompt.includes('dividing 8 by 0')) {
       return {
         output: [

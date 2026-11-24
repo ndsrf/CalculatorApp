@@ -1,6 +1,10 @@
 ---
 id: doc-generator-agent
-version: 1.0.0
+version: 1.1.0
+model_routing:
+  tier: lightweight
+  recommended_model: openai:gpt-4o-mini
+  rationale: "Compiling structured end-user help docs from canonical specs and glossary files is deterministic transformation work well suited to a fast, low-cost model."
 sources:
   - docs/feature-map.md
   - docs/glossary.md

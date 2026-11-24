@@ -1,14 +1,31 @@
-description: "Calculator Tester Agent evaluation suite (deterministic checks + llm-rubric)"
+description: "Calculator Agent evaluation suite (right-sized model routing + deterministic/safety/cost/latency checks + llm-rubric)"
+
+# Right-sized model routing:
+# - Frontier model (openai:gpt-4o) handles complex verification reasoning,
+#   adversarial prompt-injection defense (prompts/calc-tester-agent.md), and llm-rubric judging.
+# - Lightweight model (openai:gpt-4o-mini) handles deterministic documentation
+#   compilation (prompts/doc-generator-agent.md) at low latency and cost.
 
 prompts:
-  - file://../prompts/calc-tester-agent.md
+  - id: calc-tester
+    label: "calc-tester-agent (frontier)"
+    raw: file://../prompts/calc-tester-agent.md
 
 providers:
-  - id: openai:gpt-4o-mini
+  - id: openai:gpt-4o
+    label: "frontier-verifier"
     config:
       temperature: 0
+      max_tokens: 400
+
+# Example lightweight model route for doc compilation (prompts/doc-generator-agent.md):
+# Run separately via:
+#   npx promptfoo eval -p prompts/doc-generator-agent.md -r openai:gpt-4o-mini
+# Model routing tiers are also declared in each prompt's frontmatter under `model_routing`.
 
 defaultTest:
+  options:
+    provider: openai:gpt-4o
   assert:
     - type: cost
       threshold: 0.01

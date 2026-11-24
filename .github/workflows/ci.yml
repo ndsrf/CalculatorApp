@@ -32,6 +32,9 @@ jobs:
       - name: Lint architecture and dependency graph
         run: npm run lint:arch
 
+      - name: Prune dead code and unused exports (knip)
+        run: npm run lint:deadcode
+
       - name: Generate and verify Mermaid state chart
         run: npm run docs:state-chart && git diff --exit-code docs/state-chart.md
 

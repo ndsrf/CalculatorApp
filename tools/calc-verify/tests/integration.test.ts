@@ -107,4 +107,14 @@ describe('calc-verify integration tests', () => {
     expect(parsedInvalid.status).toBe('error');
     expect(parsedInvalid.console_errors[0]).toContain('not a pressable control');
   });
+
+  it('is idempotent across repeated runs from a fresh browser context', () => {
+    const args = ['tsx', CLI_PATH, 'press', '7', '3', '--snapshot', '--url', BROKEN_FIXTURE_URL];
+    const first = spawnSync('npx', args, { cwd: REPO_ROOT, encoding: 'utf-8' });
+    const second = spawnSync('npx', args, { cwd: REPO_ROOT, encoding: 'utf-8' });
+
+    expect(first.status).toBe(0);
+    expect(second.status).toBe(0);
+    expect(JSON.parse(first.stdout)).toEqual(JSON.parse(second.stdout));
+  });
 });

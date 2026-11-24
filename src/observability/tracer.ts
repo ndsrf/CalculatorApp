@@ -11,7 +11,7 @@ import {
   OTEL_ATTRS,
 } from './guardrails.ts';
 
-export { CircuitBreakerError, LoopBudget, type LoopBudgetConfig, OTEL_ATTRS };
+export { OTEL_ATTRS };
 
 type SpanExporter = NonNullable<NodeSDKConfiguration['traceExporter']>;
 type ExportableSpan = Parameters<SpanExporter['export']>[0][number];
@@ -40,7 +40,7 @@ export interface SerializedSpanRecord {
   attributes: Record<string, unknown>;
 }
 
-export class JsonlSpanExporter implements SpanExporter {
+class JsonlSpanExporter implements SpanExporter {
   private readonly filePath: string;
 
   constructor(filePath = DEFAULT_TRACE_FILE) {

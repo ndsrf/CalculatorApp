@@ -161,11 +161,14 @@ function main(): void {
   }
 
   const existing = readFileSync(GOLDEN_DATASET_PATH, 'utf-8');
-  if (existing.includes(`traceId=${span.traceId}`)) {
+  const alreadyHarvested =
+    existing.includes(`traceId=${span.traceId}`) ||
+    existing.includes(`Regression (${span.traceId})`);
+  if (alreadyHarvested) {
     console.log(
-      `Trace '${span.traceId}' is already present in evals/golden-dataset.yaml; skipping duplicate append.`
+      `Trace '${span.traceId}' already exists in evals/golden-dataset.yaml; skipping duplicate entry (idempotent no-op).`
     );
-    return;
+    process.exit(0);
   }
 
   const normalizedExisting = existing.endsWith('\n') ? existing : `${existing}\n`;
