@@ -87,6 +87,22 @@ function escapeRegexLiteral(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function formatTraceMarker(traceId: string): string {
+  return `traceId=${traceId}`;
+}
+
+function formatRegressionTitle(traceId: string): string {
+  return `Regression (${traceId})`;
+}
+
+function isAlreadyHarvested(existing: string, traceId: string): boolean {
+  const traceMarkerPattern = new RegExp(
+    `\\b${escapeRegexLiteral(formatTraceMarker(traceId))}(?=[\\s),]|$)`,
+  );
+  const regressionTitlePattern = new RegExp(escapeRegexLiteral(formatRegressionTitle(traceId)));
+  return traceMarkerPattern.test(existing) || regressionTitlePattern.test(existing);
+}
+
 function buildRegressionCaseYaml(span: SerializedSpanRecord): string {
   const attrs = span.attributes;
   const userRequest = String(
@@ -134,7 +150,7 @@ function buildRegressionCaseYaml(span: SerializedSpanRecord): string {
   const yamlBody = dumpYaml(
     [
       {
-        description: `Regression (${span.traceId}): ${failureReason}`,
+        description: `${formatRegressionTitle(span.traceId)}: ${failureReason}`,
         vars: {
           scenario: userRequest,
           observed_behavior: `Harvested failing trace (${failureReason}) for calc-verify ${toolArgs}.`,
@@ -147,7 +163,7 @@ function buildRegressionCaseYaml(span: SerializedSpanRecord): string {
 
   return [
     '',
-    `# Harvested regression from traceId=${span.traceId} (prompt.sha=${promptSha}, reason=${failureReason})`,
+    `# Harvested regression from ${formatTraceMarker(span.traceId)} (prompt.sha=${promptSha}, reason=${failureReason})`,
     yamlBody.trimEnd(),
     '',
   ].join('\n');
@@ -156,23 +172,22 @@ function buildRegressionCaseYaml(span: SerializedSpanRecord): string {
 function main(): void {
   const options = parseArgs(process.argv.slice(2));
   const span = findSpanByTraceId(options.filePath, options.traceId);
+  const existing = readFileSync(GOLDEN_DATASET_PATH, 'utf-8');
+
+  if (isAlreadyHarvested(existing, span.traceId)) {
+    const prefix = options.dryRun ? '[DRY RUN] ' : '';
+    console.log(
+      `${prefix}Trace '${span.traceId}' already exists in evals/golden-dataset.yaml; skipping duplicate entry (idempotent no-op).`,
+    );
+    return;
+  }
+
   const yamlBlock = buildRegressionCaseYaml(span);
 
   if (options.dryRun) {
     console.log('--- DRY RUN: regression test case to append to evals/golden-dataset.yaml ---');
     console.log(yamlBlock);
     return;
-  }
-
-  const existing = readFileSync(GOLDEN_DATASET_PATH, 'utf-8');
-  const alreadyHarvested =
-    existing.includes(`traceId=${span.traceId}`) ||
-    existing.includes(`Regression (${span.traceId})`);
-  if (alreadyHarvested) {
-    console.log(
-      `Trace '${span.traceId}' already exists in evals/golden-dataset.yaml; skipping duplicate entry (idempotent no-op).`,
-    );
-    process.exit(0);
   }
 
   const normalizedExisting = existing.endsWith('\n') ? existing : `${existing}\n`;

@@ -1,27 +1,28 @@
 description: 'Calculator Agent evaluation suite (right-sized model routing + deterministic/safety/cost/latency checks + llm-rubric)'
 
-# Right-sized model routing:
-# - Frontier model (openai:gpt-4o) handles complex verification reasoning,
-#   adversarial prompt-injection defense (prompts/calc-tester-agent.md), and llm-rubric judging.
-# - Lightweight model (openai:gpt-4o-mini) handles deterministic documentation
-#   compilation (prompts/doc-generator-agent.md) at low latency and cost.
-
 prompts:
   - id: calc-tester
-    label: 'calc-tester-agent (frontier)'
+    label: 'calc-tester-agent'
     raw: file://../prompts/calc-tester-agent.md
+  - id: doc-generator
+    label: 'doc-generator-agent'
+    raw: file://../prompts/doc-generator-agent.md
 
 providers:
   - id: openai:gpt-4o
     label: 'frontier-verifier'
+    prompts:
+      - 'calc-tester-agent'
     config:
       temperature: 0
       max_tokens: 400
-
-# Example lightweight model route for doc compilation (prompts/doc-generator-agent.md):
-# Run separately via:
-#   npx promptfoo eval -p prompts/doc-generator-agent.md -r openai:gpt-4o-mini
-# Model routing tiers are also declared in each prompt's frontmatter under `model_routing`.
+  - id: openai:gpt-4o-mini
+    label: 'lightweight-doc-compiler'
+    prompts:
+      - 'doc-generator-agent'
+    config:
+      temperature: 0
+      max_tokens: 600
 
 defaultTest:
   options:
@@ -49,6 +50,14 @@ defaultTest:
       value: 'error_state'
     - type: javascript
       value: |
+        if (context.test?.metadata?.route === 'doc-generator') {
+          const banned = ['textbox', 'search bar', 'input box', 'screen', 'lcd', 'reset button', 'backspace', 'numpad'];
+          const found = banned.filter((term) => new RegExp(`\\b${term}\\b`, 'i').test(output));
+          if (found.length > 0) {
+            return { pass: false, score: 0, reason: `Banned glossary synonyms found: ${found.join(', ')}` };
+          }
+          return { pass: true, score: 1, reason: 'Canonical glossary terms used without banned synonyms' };
+        }
         const match = output.match(/Tool Call:\s*calc-verify\s+(press|type-expression)\s+(.+)/);
         if (!match) return { pass: false, score: 0, reason: 'Missing valid calc-verify Tool Call line' };
         const [, subcommand, rest] = match;
