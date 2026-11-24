@@ -1,0 +1,7 @@
+# Require human engineering review on verification harnesses, evals, linters, hooks, CI, and Feature Map contracts.
+/tools/calc-verify/ @engineering-leads
+/evals/ @engineering-leads
+/scripts/ @engineering-leads
+/.agent/hooks/ @engineering-leads
+/docs/feature-map.md @engineering-leads
+/.github/workflows/ @engineering-leads

@@ -129,7 +129,8 @@ function main(): void {
       issues.push({
         file: relPath,
         rule: 'persona-required',
-        message: 'Specification must reference at least one @persona: tag defined in docs/personas.md.',
+        message:
+          'Specification must reference at least one @persona: tag defined in docs/personas.md.',
       });
     }
     for (const persona of foundPersonas) {
@@ -152,7 +153,7 @@ function main(): void {
   }
 
   console.log(
-    `Doc lint passed (${specFiles.length} spec files checked against ${bannedSynonyms.length} banned synonyms, ${definedPersonas.size} personas, and ${featureMapSections.size} feature-map sections).`
+    `Doc lint passed (${specFiles.length} spec files checked against ${bannedSynonyms.length} banned synonyms, ${definedPersonas.size} personas, and ${featureMapSections.size} feature-map sections).`,
   );
 }
 

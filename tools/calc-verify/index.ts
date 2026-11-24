@@ -75,7 +75,11 @@ function normalizeUrl(rawUrl: string): string {
   return pathToFileURL(resolve(rawUrl)).href;
 }
 
-function readFlagValue(argv: string[], index: number, flag: string): { value: string; nextIndex: number } {
+function readFlagValue(
+  argv: string[],
+  index: number,
+  flag: string,
+): { value: string; nextIndex: number } {
   const arg = argv[index];
   if (arg === flag) {
     const next = argv[index + 1];
@@ -162,14 +166,14 @@ export function parseCliArgs(argv: string[]): CliCommand {
   }
 
   throw new Error(
-    'Usage:\n  calc-verify press <keys...> [--snapshot] [--screenshot <path>] [--trace <path>] [--url <url>]\n  calc-verify type-expression "<expr>" [--submit] [--snapshot] [--screenshot <path>] [--trace <path>] [--url <url>]'
+    'Usage:\n  calc-verify press <keys...> [--snapshot] [--screenshot <path>] [--trace <path>] [--url <url>]\n  calc-verify type-expression "<expr>" [--submit] [--snapshot] [--screenshot <path>] [--trace <path>] [--url <url>]',
   );
 }
 
 async function stopTracing(
   context: BrowserContext,
   targetTracePath: string | undefined,
-  artifacts: VerifyArtifacts
+  artifacts: VerifyArtifacts,
 ): Promise<void> {
   if (targetTracePath) {
     mkdirSync(dirname(targetTracePath), { recursive: true });
@@ -246,13 +250,13 @@ export async function runVerify(command: CliCommand): Promise<VerifyResult> {
         (await expressionLocator.count()) > 0 ? await expressionLocator.inputValue() : '';
 
       const operatorSelectors = ['add', 'subtract', 'multiply', 'divide'].map(
-        (op) => FEATURE_SELECTORS[op]
+        (op) => FEATURE_SELECTORS[op],
       );
       const disabledChecks = await Promise.all(
         operatorSelectors.map(async (sel) => {
           const loc = page.locator(sel);
           return (await loc.count()) > 0 ? loc.isDisabled() : false;
-        })
+        }),
       );
       const operatorsDisabled = disabledChecks.every(Boolean);
 

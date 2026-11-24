@@ -29,7 +29,7 @@ function main(): void {
   mkdirSync(dirname(OUTPUT_PATH), { recursive: true });
   writeFileSync(OUTPUT_PATH, markdown, 'utf-8');
   console.log(
-    `Generated ${OUTPUT_PATH} with ${CALCULATOR_STATE_TRANSITIONS.length} state transitions.`
+    `Generated ${OUTPUT_PATH} with ${CALCULATOR_STATE_TRANSITIONS.length} state transitions.`,
   );
 }
 

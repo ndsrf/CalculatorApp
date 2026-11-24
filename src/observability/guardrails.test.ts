@@ -9,9 +9,9 @@ describe('observability guardrails', () => {
     budget.recordStep({ toolCalls: 1, inputTokens: 100, outputTokens: 50 });
     expect(budget.isTripped).toBe(false);
 
-    expect(() =>
-      budget.recordStep({ toolCalls: 1, inputTokens: 100, outputTokens: 50 })
-    ).toThrow(CircuitBreakerError);
+    expect(() => budget.recordStep({ toolCalls: 1, inputTokens: 100, outputTokens: 50 })).toThrow(
+      CircuitBreakerError,
+    );
     expect(budget.isTripped).toBe(true);
     expect(budget.toolCallsCount).toBe(3);
   });
@@ -21,9 +21,9 @@ describe('observability guardrails', () => {
     budget.recordStep({ toolCalls: 1, inputTokens: 300, outputTokens: 150 });
     expect(budget.isTripped).toBe(false);
 
-    expect(() =>
-      budget.recordStep({ toolCalls: 1, inputTokens: 100, outputTokens: 10 })
-    ).toThrow(CircuitBreakerError);
+    expect(() => budget.recordStep({ toolCalls: 1, inputTokens: 100, outputTokens: 10 })).toThrow(
+      CircuitBreakerError,
+    );
     expect(budget.isTripped).toBe(true);
     expect(budget.totalTokens).toBe(560);
   });

@@ -53,7 +53,7 @@ async function main(): Promise<void> {
           outputTokens,
           toolCallsCount: budget.toolCallsCount,
         };
-      }
+      },
     );
 
     console.log(
@@ -66,8 +66,8 @@ async function main(): Promise<void> {
           traceFile: join(REPO_ROOT, 'traces', 'runs.jsonl'),
         },
         null,
-        2
-      )
+        2,
+      ),
     );
   } finally {
     server.stop();

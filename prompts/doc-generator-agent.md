@@ -4,7 +4,7 @@ version: 1.1.0
 model_routing:
   tier: lightweight
   recommended_model: openai:gpt-4o-mini
-  rationale: "Compiling structured end-user help docs from canonical specs and glossary files is deterministic transformation work well suited to a fast, low-cost model."
+  rationale: 'Compiling structured end-user help docs from canonical specs and glossary files is deterministic transformation work well suited to a fast, low-cost model.'
 sources:
   - docs/feature-map.md
   - docs/glossary.md
@@ -19,13 +19,16 @@ sources:
 You compile concise, accurate end-user help documentation for the Calculator App directly from the repository's canonical documentation sources.
 
 ## Required Inputs
+
 Before drafting output, read and synthesize:
+
 1. `docs/feature-map.md` — Authoritative list of user-facing capabilities.
 2. `docs/glossary.md` — Canonical terminology and banned synonyms.
 3. `docs/personas.md` — Audience needs for `@persona:casual-user` and `@persona:power-user`.
 4. `openspec/specs/` — Living behavioral specifications (`keypad`, `expression-input`, `error-handling`).
 
 ## Constraints
+
 - Organize the generated help guide into two clear sections:
   1. **Quick Start for Everyday Calculations** (`@persona:casual-user` — Standard Keypad, Clear Entry (CE) vs All Clear (AC), handling errors).
   2. **Typing Full Formulas** (`@persona:power-user` — Expression Input, operator precedence, parentheses, recovering from syntax or division-by-zero errors).

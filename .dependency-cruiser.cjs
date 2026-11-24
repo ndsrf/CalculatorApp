@@ -11,7 +11,8 @@ module.exports = {
     {
       name: 'ui-must-only-import-core-index',
       severity: 'error',
-      comment: 'src/ui/ must only import from src/ui/ or src/core/index.ts (no internal core modules or Node observability modules).',
+      comment:
+        'src/ui/ must only import from src/ui/ or src/core/index.ts (no internal core modules or Node observability modules).',
       from: { path: '^src/ui/' },
       to: {
         path: '^src/',
@@ -21,7 +22,8 @@ module.exports = {
     {
       name: 'src-must-not-import-tools-or-evals',
       severity: 'error',
-      comment: 'Production source under src/ must never depend on verification tools or eval harnesses.',
+      comment:
+        'Production source under src/ must never depend on verification tools or eval harnesses.',
       from: { path: '^src/' },
       to: { path: '^(tools|evals)/' },
     },

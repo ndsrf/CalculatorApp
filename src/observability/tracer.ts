@@ -52,8 +52,7 @@ class JsonlSpanExporter implements SpanExporter {
       mkdirSync(dirname(this.filePath), { recursive: true });
       for (const span of spans) {
         const ctx = span.spanContext();
-        const durationMs =
-          (span.duration[0] * 1_000_000_000 + span.duration[1]) / 1_000_000;
+        const durationMs = (span.duration[0] * 1_000_000_000 + span.duration[1]) / 1_000_000;
         const record: SerializedSpanRecord = {
           traceId: ctx.traceId,
           spanId: ctx.spanId,
@@ -140,7 +139,7 @@ export interface TracedAgentStepResult {
 
 export async function runTracedAgentSpan<T extends TracedAgentStepResult>(
   input: TracedAgentRunInput,
-  fn: (span: Span, budget: LoopBudget) => Promise<T>
+  fn: (span: Span, budget: LoopBudget) => Promise<T>,
 ): Promise<T & { traceId: string; promptSha: string; leakedSelector: boolean }> {
   const tracer = trace.getTracer('calculator-app');
   const promptSha = computePromptSha();

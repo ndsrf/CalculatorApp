@@ -43,16 +43,18 @@ const actionArb: fc.Arbitrary<FuzzAction> = fc.oneof(
       .record({
         text: fc.oneof(
           fc.constantFrom(...MALFORMED_AND_VALID_EXPRESSIONS),
-          fc.string({ minLength: 0, maxLength: 18 })
+          fc.string({ minLength: 0, maxLength: 18 }),
         ),
         submitVia: fc.constantFrom<'enter' | 'button'>('enter', 'button'),
       })
       .map((entry) => ({ kind: 'expression' as const, ...entry })),
-  }
+  },
 );
 
 async function assertDisplayClean(page: Page): Promise<void> {
-  const text = ((await page.locator(FEATURE_SELECTORS['display-current']).textContent()) ?? '').trim();
+  const text = (
+    (await page.locator(FEATURE_SELECTORS['display-current']).textContent()) ?? ''
+  ).trim();
   expect(text).not.toContain('NaN');
   expect(text).not.toContain('undefined');
   expect(text).not.toContain('[object Object]');
@@ -123,13 +125,15 @@ describe('UI property-based fuzzing (Playwright + fast-check)', () => {
           await page.locator(PRESSABLE_KEY_SELECTORS.ac).click();
           expect(runtimeErrors).toEqual([]);
           expect(
-            ((await page.locator(FEATURE_SELECTORS['display-current']).textContent()) ?? '').trim()
+            ((await page.locator(FEATURE_SELECTORS['display-current']).textContent()) ?? '').trim(),
           ).toBe('0');
           expect(await page.locator(FEATURE_SELECTORS['expression-input']).inputValue()).toBe('');
-          expect(await page.locator(FEATURE_SELECTORS['expression-input']).isDisabled()).toBe(false);
+          expect(await page.locator(FEATURE_SELECTORS['expression-input']).isDisabled()).toBe(
+            false,
+          );
           expect(await page.locator(PRESSABLE_KEY_SELECTORS.add).isDisabled()).toBe(false);
         }),
-        { numRuns: 15 }
+        { numRuns: 15 },
       );
     } finally {
       await page.close();

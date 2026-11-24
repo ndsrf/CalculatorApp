@@ -238,9 +238,9 @@ const expressionArb = fc.oneof(
     .tuple(
       fc.integer({ min: -50, max: 50 }),
       fc.constantFrom('+', '-', '*', '/'),
-      fc.integer({ min: -10, max: 10 })
+      fc.integer({ min: -10, max: 10 }),
     )
-    .map(([a, op, b]) => `(${a}) ${op} (${b})`)
+    .map(([a, op, b]) => `(${a}) ${op} (${b})`),
 );
 
 const allCommands = [
@@ -262,7 +262,7 @@ describe('calculator model-based state machine tests (fast-check)', () => {
         });
         fc.modelRun(setup, cmds);
       }),
-      { numRuns: 200 }
+      { numRuns: 200 },
     );
   });
 });

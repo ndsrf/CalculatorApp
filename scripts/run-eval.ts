@@ -47,7 +47,10 @@ function loadDotEnvIfPresent(): void {
       continue;
     }
     const key = line.slice(0, eqIndex).trim();
-    const value = line.slice(eqIndex + 1).trim().replace(/^['"]|['"]$/g, '');
+    const value = line
+      .slice(eqIndex + 1)
+      .trim()
+      .replace(/^['"]|['"]$/g, '');
     if (!(key in process.env)) {
       process.env[key] = value;
     }
@@ -67,7 +70,7 @@ function runPromptfoo(configPath: string): number {
       cwd: REPO_ROOT,
       stdio: 'inherit',
       env: process.env,
-    }
+    },
   );
   return result.status ?? 1;
 }
@@ -82,7 +85,7 @@ function main(): void {
   }
 
   console.log(
-    'OPENAI_API_KEY not set (or --deterministic specified): running deterministic Promptfoo assertions offline (skipping llm-rubric; see .env.example to enable llm-rubric).'
+    'OPENAI_API_KEY not set (or --deterministic specified): running deterministic Promptfoo assertions offline (skipping llm-rubric; see .env.example to enable llm-rubric).',
   );
 
   const baseConfig = parseYaml(readFileSync(FULL_CONFIG_PATH, 'utf-8')) as PromptfooConfig;
@@ -99,7 +102,7 @@ function main(): void {
     providers: ['file://../evals/providers/deterministic-stub.mjs'],
     defaultTest: {
       assert: (baseConfig.defaultTest?.assert ?? []).filter(
-        (assertion) => assertion.type !== 'llm-rubric'
+        (assertion) => assertion.type !== 'llm-rubric',
       ),
     },
     tests: deterministicTests,

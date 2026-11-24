@@ -8,7 +8,7 @@ import type { VerifyResult } from '../index.ts';
 const REPO_ROOT = resolve(import.meta.dirname, '..', '..', '..');
 const CLI_PATH = join(REPO_ROOT, 'tools', 'calc-verify', 'index.ts');
 const BROKEN_FIXTURE_URL = pathToFileURL(
-  join(REPO_ROOT, 'tools', 'calc-verify', 'fixtures', 'broken-calc.html')
+  join(REPO_ROOT, 'tools', 'calc-verify', 'fixtures', 'broken-calc.html'),
 ).href;
 
 describe('calc-verify integration tests', () => {
@@ -35,7 +35,7 @@ describe('calc-verify integration tests', () => {
       {
         cwd: REPO_ROOT,
         encoding: 'utf-8',
-      }
+      },
     );
 
     expect(run.status).toBe(1);
@@ -69,7 +69,7 @@ describe('calc-verify integration tests', () => {
       {
         cwd: REPO_ROOT,
         encoding: 'utf-8',
-      }
+      },
     );
 
     expect(run.status).toBe(0);
@@ -88,7 +88,7 @@ describe('calc-verify integration tests', () => {
       {
         cwd: REPO_ROOT,
         encoding: 'utf-8',
-      }
+      },
     );
     expect(withoutSnapshot.status).toBe(0);
     const parsedNoSnap = JSON.parse(withoutSnapshot.stdout) as VerifyResult;
@@ -100,7 +100,7 @@ describe('calc-verify integration tests', () => {
       {
         cwd: REPO_ROOT,
         encoding: 'utf-8',
-      }
+      },
     );
     expect(invalidPress.status).toBe(1);
     const parsedInvalid = JSON.parse(invalidPress.stdout) as VerifyResult;

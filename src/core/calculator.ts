@@ -20,17 +20,46 @@ export interface CalculatorTransition {
 export const CALCULATOR_STATE_TRANSITIONS: readonly CalculatorTransition[] = [
   { from: 'Idle', to: 'EnteringDigit', event: 'pressDigit (0-9)' },
   { from: 'Idle', to: 'PendingOp', event: 'pressOperator (+,-,*,/)' },
-  { from: 'Idle', to: 'Idle', event: 'submitExpression (valid) / pressClearEntry (CE) / pressAllClear (AC)' },
+  {
+    from: 'Idle',
+    to: 'Idle',
+    event: 'submitExpression (valid) / pressClearEntry (CE) / pressAllClear (AC)',
+  },
   { from: 'Idle', to: 'ErrorState', event: 'submitExpression (div-by-zero / syntax error)' },
   { from: 'EnteringDigit', to: 'EnteringDigit', event: 'pressDigit (0-9)' },
-  { from: 'EnteringDigit', to: 'PendingOp', event: 'pressOperator (+,-,*,/) / pressClearEntry (CE with pendingOp)' },
-  { from: 'EnteringDigit', to: 'Idle', event: 'pressEquals (valid) / submitExpression (valid) / pressClearEntry (CE without pendingOp) / pressAllClear (AC)' },
-  { from: 'EnteringDigit', to: 'ErrorState', event: 'pressEquals or pressOperator (div-by-zero) / submitExpression (error)' },
+  {
+    from: 'EnteringDigit',
+    to: 'PendingOp',
+    event: 'pressOperator (+,-,*,/) / pressClearEntry (CE with pendingOp)',
+  },
+  {
+    from: 'EnteringDigit',
+    to: 'Idle',
+    event:
+      'pressEquals (valid) / submitExpression (valid) / pressClearEntry (CE without pendingOp) / pressAllClear (AC)',
+  },
+  {
+    from: 'EnteringDigit',
+    to: 'ErrorState',
+    event: 'pressEquals or pressOperator (div-by-zero) / submitExpression (error)',
+  },
   { from: 'PendingOp', to: 'EnteringDigit', event: 'pressDigit (0-9)' },
   { from: 'PendingOp', to: 'PendingOp', event: 'pressOperator (switch op) / pressClearEntry (CE)' },
-  { from: 'PendingOp', to: 'Idle', event: 'pressEquals (valid) / submitExpression (valid) / pressAllClear (AC)' },
-  { from: 'PendingOp', to: 'ErrorState', event: 'pressEquals (div-by-zero) / submitExpression (error)' },
-  { from: 'ErrorState', to: 'ErrorState', event: 'pressDigit / pressOperator / pressEquals / CE / submitExpression (locked)' },
+  {
+    from: 'PendingOp',
+    to: 'Idle',
+    event: 'pressEquals (valid) / submitExpression (valid) / pressAllClear (AC)',
+  },
+  {
+    from: 'PendingOp',
+    to: 'ErrorState',
+    event: 'pressEquals (div-by-zero) / submitExpression (error)',
+  },
+  {
+    from: 'ErrorState',
+    to: 'ErrorState',
+    event: 'pressDigit / pressOperator / pressEquals / CE / submitExpression (locked)',
+  },
   { from: 'ErrorState', to: 'Idle', event: 'pressAllClear (AC)' },
 ];
 
@@ -113,7 +142,7 @@ function applyOperation(left: number, right: number, op: Operator): number {
 function evaluateTransition(
   state: CalculatorState,
   compute: () => number,
-  onSuccess: (result: number) => CalculatorState
+  onSuccess: (result: number) => CalculatorState,
 ): CalculatorState {
   try {
     const result = compute();
@@ -175,7 +204,7 @@ export function pressOperator(state: CalculatorState, op: Operator): CalculatorS
         accumulator: result,
         pendingOp: op,
         waitingForOperand: true,
-      })
+      }),
     );
   }
 
@@ -213,7 +242,7 @@ export function pressEquals(state: CalculatorState): CalculatorState {
       accumulator: null,
       pendingOp: null,
       waitingForOperand: true,
-    })
+    }),
   );
 }
 
@@ -234,7 +263,10 @@ export function pressAllClear(): CalculatorState {
   return createInitialState();
 }
 
-export function setExpressionInput(state: CalculatorState, expressionInput: string): CalculatorState {
+export function setExpressionInput(
+  state: CalculatorState,
+  expressionInput: string,
+): CalculatorState {
   if (state.errorState) {
     return state;
   }
@@ -260,6 +292,6 @@ export function submitExpression(state: CalculatorState): CalculatorState {
       pendingOp: null,
       errorState: false,
       waitingForOperand: true,
-    })
+    }),
   );
 }

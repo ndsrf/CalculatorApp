@@ -63,7 +63,9 @@ export function mountCalculator(root: HTMLElement): void {
 
   const displayEl = root.querySelector<HTMLElement>('#display-current');
   const expressionInputEl = root.querySelector<HTMLInputElement>('#expression-input');
-  const submitExpressionBtn = root.querySelector<HTMLButtonElement>('[data-action="submit-expression"]');
+  const submitExpressionBtn = root.querySelector<HTMLButtonElement>(
+    '[data-action="submit-expression"]',
+  );
   const operatorButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-op]'));
 
   if (!displayEl || !expressionInputEl || !submitExpressionBtn) {

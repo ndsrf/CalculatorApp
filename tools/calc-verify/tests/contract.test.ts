@@ -40,7 +40,7 @@ describe('calc-verify Feature Map contract', () => {
     for (const entry of documented) {
       expect(
         FEATURE_SELECTORS[entry.cliKey],
-        `Missing or mismatched selector for '${entry.featureName}' (key '${entry.cliKey}')`
+        `Missing or mismatched selector for '${entry.featureName}' (key '${entry.cliKey}')`,
       ).toBe(entry.selector);
     }
   });
@@ -50,7 +50,7 @@ describe('calc-verify Feature Map contract', () => {
     for (const cliKey of Object.keys(FEATURE_SELECTORS)) {
       expect(
         documentedKeys.has(cliKey),
-        `FEATURE_SELECTORS contains undocumented key '${cliKey}' not found in docs/feature-map.md`
+        `FEATURE_SELECTORS contains undocumented key '${cliKey}' not found in docs/feature-map.md`,
       ).toBe(true);
     }
   });

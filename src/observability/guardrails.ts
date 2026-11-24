@@ -94,15 +94,12 @@ export class LoopBudget {
     if (this.toolCalls > this.maxToolCalls) {
       this.trip(
         `tool calls (${this.toolCalls}) exceeded maxToolCalls (${this.maxToolCalls})`,
-        span
+        span,
       );
     }
 
     if (this.totalTokens > this.maxTokens) {
-      this.trip(
-        `token usage (${this.totalTokens}) exceeded maxTokens (${this.maxTokens})`,
-        span
-      );
+      this.trip(`token usage (${this.totalTokens}) exceeded maxTokens (${this.maxTokens})`, span);
     }
 
     if (span) {

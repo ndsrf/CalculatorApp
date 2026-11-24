@@ -17,7 +17,11 @@ const REPO_ROOT = resolve(import.meta.dirname, '..');
 const DEFAULT_TRACE_FILE = join(REPO_ROOT, 'traces', 'runs.jsonl');
 const GOLDEN_DATASET_PATH = join(REPO_ROOT, 'evals', 'golden-dataset.yaml');
 
-function readFlagValue(argv: string[], index: number, flag: string): { value: string; nextIndex: number } {
+function readFlagValue(
+  argv: string[],
+  index: number,
+  flag: string,
+): { value: string; nextIndex: number } {
   const arg = argv[index];
   if (arg === flag) {
     const next = argv[index + 1];
@@ -55,7 +59,7 @@ function parseArgs(argv: string[]): CliOptions {
 
   if (!traceId) {
     throw new Error(
-      'Usage: tsx scripts/harvest-trace.ts --trace-id <id> [--file traces/runs.jsonl] [--dry-run]'
+      'Usage: tsx scripts/harvest-trace.ts --trace-id <id> [--file traces/runs.jsonl] [--dry-run]',
     );
   }
 
@@ -86,7 +90,7 @@ function escapeRegexLiteral(value: string): string {
 function buildRegressionCaseYaml(span: SerializedSpanRecord): string {
   const attrs = span.attributes;
   const userRequest = String(
-    attrs[OTEL_ATTRS.APP_USER_REQUEST] ?? 'Verify calculator flow captured from production trace.'
+    attrs[OTEL_ATTRS.APP_USER_REQUEST] ?? 'Verify calculator flow captured from production trace.',
   );
   const toolArgs = String(attrs[OTEL_ATTRS.TOOL_ARGS] ?? 'press ac --snapshot');
   const promptSha = String(attrs[OTEL_ATTRS.PROMPT_SHA] ?? 'unknown');
@@ -138,7 +142,7 @@ function buildRegressionCaseYaml(span: SerializedSpanRecord): string {
         assert: assertions,
       },
     ],
-    { lineWidth: -1, noRefs: true }
+    { lineWidth: -1, noRefs: true },
   );
 
   return [
@@ -166,7 +170,7 @@ function main(): void {
     existing.includes(`Regression (${span.traceId})`);
   if (alreadyHarvested) {
     console.log(
-      `Trace '${span.traceId}' already exists in evals/golden-dataset.yaml; skipping duplicate entry (idempotent no-op).`
+      `Trace '${span.traceId}' already exists in evals/golden-dataset.yaml; skipping duplicate entry (idempotent no-op).`,
     );
     process.exit(0);
   }
@@ -174,7 +178,7 @@ function main(): void {
   const normalizedExisting = existing.endsWith('\n') ? existing : `${existing}\n`;
   writeFileSync(GOLDEN_DATASET_PATH, `${normalizedExisting}${yamlBlock}`, 'utf-8');
   console.log(
-    `Appended regression test case for traceId='${span.traceId}' (prompt.sha=${String(span.attributes[OTEL_ATTRS.PROMPT_SHA] ?? 'unknown')}) to evals/golden-dataset.yaml.`
+    `Appended regression test case for traceId='${span.traceId}' (prompt.sha=${String(span.attributes[OTEL_ATTRS.PROMPT_SHA] ?? 'unknown')}) to evals/golden-dataset.yaml.`,
   );
 }
 

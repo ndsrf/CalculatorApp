@@ -1,0 +1,9 @@
+dist/
+traces/
+openspec/archive/
+package-lock.json
+skills-lock.json
+.agents/
+.promptfoo/
+playwright-report/
+test-results/
