@@ -1,0 +1,6 @@
+schema: spec-driven
+
+context: |
+  Every folder under openspec/specs/<feature>/spec.md must match a top-level section in docs/feature-map.md 1:1.
+  Use only canonical terms from docs/glossary.md and valid @persona: tags from docs/personas.md.
+  Run `npm run lint:docs` after any spec edit.

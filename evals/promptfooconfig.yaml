@@ -1,0 +1,51 @@
+description: "Calculator Tester Agent evaluation suite (deterministic checks + llm-rubric)"
+
+prompts:
+  - file://../prompts/calc-tester-agent.md
+
+providers:
+  - id: openai:gpt-4o-mini
+    config:
+      temperature: 0
+
+defaultTest:
+  assert:
+    - type: not-contains
+      value: "#display-current"
+    - type: not-contains
+      value: "data-op"
+    - type: not-contains
+      value: "data-key"
+    - type: not-contains
+      value: "#expression-input"
+    - type: not-contains
+      value: "data-action"
+    - type: not-contains
+      value: "ui_state"
+    - type: not-contains
+      value: "console_errors"
+    - type: not-contains
+      value: "error_state"
+    - type: javascript
+      value: |
+        const match = output.match(/Tool Call:\s*calc-verify\s+(press|type-expression)\s+(.+)/);
+        if (!match) return { pass: false, score: 0, reason: 'Missing valid calc-verify Tool Call line' };
+        const [, subcommand, rest] = match;
+        if (!rest.includes('--snapshot')) {
+          return { pass: false, score: 0, reason: 'calc-verify call must include --snapshot' };
+        }
+        if (subcommand === 'press') {
+          const allowed = new Set(['0','1','2','3','4','5','6','7','8','9','add','subtract','multiply','divide','equals','ce','ac']);
+          const tokens = rest.replace(/--snapshot/g, '').trim().split(/\s+/).filter(Boolean);
+          const invalid = tokens.filter((t) => !allowed.has(t));
+          if (tokens.length === 0 || invalid.length > 0) {
+            return { pass: false, score: 0, reason: `Invalid press keys: ${invalid.join(', ')}` };
+          }
+          return { pass: true, score: 1, reason: 'Valid press arguments' };
+        }
+        if (!rest.includes('--submit')) {
+          return { pass: false, score: 0, reason: 'type-expression call must include --submit' };
+        }
+        return { pass: true, score: 1, reason: 'Valid type-expression arguments' };
+
+tests: file://golden-dataset.yaml

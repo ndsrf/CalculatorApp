@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Broken Calculator Fixture</title>
+  </head>
+  <body>
+    <output id="display-current">0</output>
+    <input id="expression-input" type="text" value="" />
+    <button type="button" data-action="submit-expression">Run</button>
+
+    <div>
+      <button type="button" data-key="0">0</button>
+      <button type="button" data-key="1">1</button>
+      <button type="button" data-key="2">2</button>
+      <button type="button" data-key="3">3</button>
+      <button type="button" data-key="4">4</button>
+      <button type="button" data-key="5">5</button>
+      <button type="button" data-key="6">6</button>
+      <button type="button" data-key="7">7</button>
+      <button type="button" data-key="8">8</button>
+      <button type="button" data-key="9">9</button>
+      <button type="button" data-op="add">+</button>
+      <button type="button" data-op="subtract">-</button>
+      <button type="button" data-op="multiply">*</button>
+      <button type="button" data-op="divide">/</button>
+      <button type="button" data-action="ce">CE</button>
+      <button type="button" data-action="ac">AC</button>
+      <button type="button" data-action="equals">=</button>
+    </div>
+
+    <script>
+      const display = document.getElementById('display-current');
+
+      document.querySelectorAll('[data-key]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const key = btn.getAttribute('data-key');
+          display.textContent = display.textContent === '0' ? key : display.textContent + key;
+        });
+      });
+
+      document.querySelector('[data-action="equals"]').addEventListener('click', () => {
+        // Intentional ReferenceError to test calc-verify pageerror capture
+        display.textContent = String(nonExistentResultVariable);
+      });
+    </script>
+  </body>
+</html>
