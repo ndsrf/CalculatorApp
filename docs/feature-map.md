@@ -52,4 +52,4 @@ This document is the single source of truth mapping user-facing features to:
 **Spec:** [`openspec/specs/error-handling/spec.md`](../openspec/specs/error-handling/spec.md)  
 **Primary Personas:** `@persona:casual-user`, `@persona:power-user`
 
-Error states render in the **Primary Readout** (`#display-current`), disable operator keys (`[data-op="add"]`, `[data-op="subtract"]`, `[data-op="multiply"]`, `[data-op="divide"]`), and recover exclusively when **All Clear (AC)** (`[data-action="ac"]`) is activated.
+Error states render in the **Primary Readout** (`#display-current`), disable operator keys (`[data-op="add"]`, `[data-op="subtract"]`, `[data-op="multiply"]`, `[data-op="divide"]`), **Expression Input** (`#expression-input`), and **Submit Expression** (`[data-action="submit-expression"]`), ignore all other keypad inputs, and recover exclusively when **All Clear (AC)** (`[data-action="ac"]`) is activated.

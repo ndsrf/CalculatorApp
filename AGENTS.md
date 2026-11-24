@@ -33,6 +33,10 @@ Before proposing or implementing any change, you MUST read:
 
 ## 5. Installed Agent Skills
 
-- Reusable discovery and review skills live under `.agents/skills/` (managed via `skills-lock.json` from `mattpocock/skills`):
+- Reusable discovery and review skills live under `.agents/skills/` (managed verbatim via `skills-lock.json` from `mattpocock/skills`):
   - `.agents/skills/grill-with-docs/SKILL.md` (composes `grilling` and `domain-modeling`)
   - `.agents/skills/code-review/SKILL.md`
+- **Repository Path Overrides:** When running these vendored skills in this repo, map their upstream defaults to this repository's canonical paths:
+  - Write glossary updates to [`docs/glossary.md`](docs/glossary.md) (not a root `GLOSSARY.md`) and ADRs to `docs/adr/NNN-<slug>.md` (3-digit numbering).
+  - Write behavioral requirement deltas in place under [`openspec/specs/`](openspec/specs/) matching [`docs/feature-map.md`](docs/feature-map.md) 1:1.
+  - For `/code-review`, treat [`openspec/specs/`](openspec/specs/) and [`docs/feature-map.md`](docs/feature-map.md) as the primary spec sources (no external issue tracker setup is required).

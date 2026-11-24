@@ -60,11 +60,27 @@ const DOC_COMPILATION_GUIDE = [
   '- If a formula has invalid syntax or divides by zero, the Primary Readout shows "Invalid expression" or "Cannot divide by zero" and disables operator keys until you press All Clear (AC).',
 ].join('\n');
 
+const HARVESTED_TRACE_PATTERN =
+  /Observed App Behavior:\s*Harvested failing trace\b[^\n]*?\bfor\s+(calc-verify\s+[^\n]+?)\.?(?:\r?\n|$)/;
+
 function buildResponse(toolCall, summary) {
   return {
     output: [`Tool Call: ${toolCall}`, '', 'Summary:', summary].join('\n'),
     tokenUsage: TOKEN_USAGE,
     cost: STUB_COST,
+  };
+}
+
+function buildHarvestedRegressionFixture(prompt) {
+  const match = prompt.match(HARVESTED_TRACE_PATTERN);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    toolCall: match[1].trim(),
+    summary:
+      'The calculator completed the requested verification sequence and updated the Primary Readout clearly without exposing internal details. Press All Clear (AC) whenever you want to clear an error and start a fresh calculation.',
   };
 }
 
@@ -87,7 +103,9 @@ export default class DeterministicStubProvider {
     }
 
     const fixture =
-      CALC_TESTER_FIXTURES.find((entry) => prompt.includes(entry.match)) ?? DEFAULT_FIXTURE;
+      CALC_TESTER_FIXTURES.find((entry) => prompt.includes(entry.match)) ??
+      buildHarvestedRegressionFixture(prompt) ??
+      DEFAULT_FIXTURE;
     return buildResponse(fixture.toolCall, fixture.summary);
   }
 }

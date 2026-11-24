@@ -2,11 +2,14 @@ import { join, resolve } from 'node:path';
 import { parseCliArgs, runVerify } from '../tools/calc-verify/index.ts';
 import { runTracedAgentSpan, startObservability } from '../src/observability/tracer.ts';
 import { startViteServer } from './dev-server.ts';
+import { loadDotEnvIfPresent } from './env.ts';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..');
 const DEMO_PORT = 5175;
 
 async function main(): Promise<void> {
+  loadDotEnvIfPresent();
+
   const rawArgs = process.argv.slice(2);
   const verifyArgs =
     rawArgs.length > 0 ? rawArgs : ['press', '8', 'divide', '0', 'equals', '--snapshot'];

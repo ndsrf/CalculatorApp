@@ -30,13 +30,13 @@ Most AI coding setups fail not because models cannot write syntax, but because t
 ### Layer 2 — Reusable Agent Skills & Two-Axis Review
 
 - **Failure mode solved:** Jumping straight from a vague prompt to code produces unexamined assumptions, while single-pass code reviews let clean-looking code mask missing spec requirements (or vice versa).
-- **How it works:** Before coding, `/grill-with-docs` (composing `grilling` and `domain-modeling`) interviews requirements directly into the Glossary, ADRs, and OpenSpec deltas. After coding, `/code-review` spawns two parallel subagents to audit diffs independently along the **Standards** axis (architecture, `AGENTS.md`, code smells) and the **Spec** axis (`openspec/specs/`, `docs/feature-map.md`, edge cases).
-- **Implemented by:** [`.agents/skills/grill-with-docs/`](.agents/skills/grill-with-docs/SKILL.md), [`.agents/skills/code-review/`](.agents/skills/code-review/SKILL.md), [`skills-lock.json`](skills-lock.json).
+- **How it works:** Before coding, `/grill-with-docs` (composing `grilling` and `domain-modeling`) interviews requirements directly into the Glossary, ADRs, and OpenSpec deltas. After coding, `/code-review` spawns two parallel subagents to audit diffs independently along the **Standards** axis (architecture, `AGENTS.md`, code smells) and the **Spec** axis (`openspec/specs/`, `docs/feature-map.md`, edge cases). Because `.agents/skills/` vendors verbatim copies from `mattpocock/skills` via `skills-lock.json`, [`AGENTS.md`](AGENTS.md) maps their upstream defaults onto `docs/glossary.md`, `docs/adr/`, and `openspec/specs/`.
+- **Implemented by:** [`.agents/skills/grill-with-docs/`](.agents/skills/grill-with-docs/SKILL.md), [`.agents/skills/code-review/`](.agents/skills/code-review/SKILL.md), [`skills-lock.json`](skills-lock.json), [`AGENTS.md`](AGENTS.md).
 
 ### Layer 3 — Hard Guardrails & Architectural Boundaries
 
 - **Failure mode solved:** Prose instructions in `AGENTS.md` are advisory; under pressure, agents still import DOM globals into pure logic, reach for `eval()`, scatter redundant inline comments, leave behind dead helper code, or edit test harnesses to make red checks turn green.
-- **How it works:** Deterministic tooling turns conventions into hard gates: `dependency-cruiser` enforces strict `src/core/` purity and `src/ui/` barrel-only imports; prescriptive ESLint rules ban `eval()`/`new Function()` (pointing directly to ADR 001), block browser globals in `src/core/`, and warn on explanatory inline comments; `knip` prunes unused files, exports, and dependencies; and a pre-tool shell hook blocks unauthorized edits to `tools/calc-verify/` (requiring `ALLOW_VERIFY_EDIT=1`) and unmapped `openspec/specs/` folders.
+- **How it works:** Deterministic tooling turns conventions into hard gates: `dependency-cruiser` enforces strict `src/core/` purity and `src/ui/` barrel-only imports; prescriptive ESLint rules ban `eval()`/`new Function()` (pointing directly to ADR 001), block browser globals in `src/core/`, and warn on explanatory inline comments; `knip` prunes unused files, exports, and dependencies; and a portable pre-tool shell hook (runnable directly or wired into your coding agent's `PreToolUse` hook config) blocks unauthorized edits to `tools/calc-verify/` (requiring `ALLOW_VERIFY_EDIT=1`) and unmapped `openspec/specs/` folders.
 - **Implemented by:** [`.agent/hooks/pre-tool-guard.sh`](.agent/hooks/pre-tool-guard.sh), [`.dependency-cruiser.cjs`](.dependency-cruiser.cjs), [`eslint.config.js`](eslint.config.js), [`knip.json`](knip.json) (`npm run lint:arch`, `npm run lint:deadcode`).
 
 ### Layer 4 — Verification Pyramid & Auto-Generated Artifacts
@@ -60,7 +60,7 @@ Most AI coding setups fail not because models cannot write syntax, but because t
 ### Layer 7 — Repository Hygiene & Diff Protection
 
 - **Failure mode solved:** Archived specs and raw JSONL trace logs pollute agent context windows, stylistic reformatting bloats PR diffs, and autonomous agents could bypass local hooks in remote branches or open unverified PRs.
-- **How it works:** `.cursorignore` and `.claudeignore` keep `openspec/archive/`, `traces/`, `dist/`, and test artifacts out of default agent search; `.github/CODEOWNERS` enforces Git-level human review on `tools/calc-verify/`, `evals/`, `scripts/`, `.agent/hooks/`, `docs/feature-map.md`, and CI workflows; `.github/pull_request_template.md` standardizes evidence-backed PR handoffs (Feature Map links, OpenSpec deltas, `calc-verify` snapshots, and gate checklists); and Prettier guarantees deterministic formatting with zero stylistic churn.
+- **How it works:** `.cursorignore` and `.claudeignore` keep `openspec/archive/`, `traces/`, `dist/`, and test artifacts out of default agent search; `.github/CODEOWNERS` (using a placeholder `@engineering-leads` handle you can swap for your own GitHub team) enforces Git-level human review on `tools/calc-verify/`, `evals/`, `scripts/`, `.agent/hooks/`, `docs/feature-map.md`, and CI workflows; `.github/pull_request_template.md` standardizes evidence-backed PR handoffs (Feature Map links, OpenSpec deltas, `calc-verify` snapshots, and gate checklists); and Prettier guarantees deterministic formatting with zero stylistic churn.
 - **Implemented by:** [`.cursorignore`](.cursorignore), [`.claudeignore`](.claudeignore), [`.github/CODEOWNERS`](.github/CODEOWNERS), [`.github/pull_request_template.md`](.github/pull_request_template.md), [`.prettierrc`](.prettierrc), [`.prettierignore`](.prettierignore) (`npm run format`, `npm run format:check`).
 
 ### Layer 8 — Production Boundaries (Handled Outside the Repo)
@@ -74,7 +74,7 @@ Most AI coding setups fail not because models cannot write syntax, but because t
 
 | Path                                                        | Role in the AI-Native Workflow                                                                                                                                                                                         |
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AGENTS.md`                                                 | Top-level agent operating rules (mandatory doc reads, 1:1 OpenSpec updates, guardrail integrity, comment hygiene).                                                                                                     |
+| `AGENTS.md`                                                 | Top-level agent operating rules (mandatory doc reads, 1:1 OpenSpec updates, guardrail integrity, comment hygiene, and repo path overrides for vendored skills).                                                        |
 | `.agents/skills/` & `skills-lock.json`                      | Installed agent skills from `mattpocock/skills`: `grill-with-docs` (composing `grilling` + `domain-modeling`) and `code-review`.                                                                                       |
 | `.agent/hooks/pre-tool-guard.sh`                            | Executable pre-tool hook blocking unauthorized edits to `tools/calc-verify/` (unless `ALLOW_VERIFY_EDIT=1`) and unmapped folders in `openspec/specs/`.                                                                 |
 | `docs/feature-map.md`                                       | Single source of truth mapping features 1:1 to `openspec/specs/<section>/spec.md` and exact DOM selectors.                                                                                                             |
@@ -91,7 +91,7 @@ Most AI coding setups fail not because models cannot write syntax, but because t
 | `prompts/`                                                  | Versioned agent system prompts (`calc-tester-agent.md`, `doc-generator-agent.md`).                                                                                                                                     |
 | `evals/`                                                    | Promptfoo config (`promptfooconfig.yaml`), 6-case `golden-dataset.yaml` (3 functional + 2 binary `safety` + 1 lightweight `docs` route), and offline deterministic stub provider (`providers/deterministic-stub.mjs`). |
 | `traces/`                                                   | Gitignored local trace output (`runs.jsonl`, screenshots, failure trace ZIPs) plus committed `sample-failed-trace.jsonl` for testing harvesting.                                                                       |
-| `scripts/`                                                  | Automation CLIs: `lint-docs.ts`, `generate-state-chart.ts`, `run-eval.ts`, `run-traced-demo.ts`, `harvest-trace.ts`, and shared `dev-server.ts`.                                                                       |
+| `scripts/`                                                  | Automation CLIs: `lint-docs.ts`, `generate-state-chart.ts`, `run-eval.ts`, `run-traced-demo.ts`, `harvest-trace.ts`, plus shared `dev-server.ts` and `env.ts`.                                                         |
 | `.dependency-cruiser.cjs`, `eslint.config.js` & `knip.json` | Hard architectural boundaries, prescriptive ESLint rules (`eval` ban citing ADR 001, no DOM globals in `src/core/`, inline comment warnings), and dead-code pruning (`knip`).                                          |
 | `.cursorignore` & `.claudeignore`                           | Context-window ignore rules excluding archived specs, OTel logs, build outputs, and test reports from default agent search.                                                                                            |
 | `.prettierrc` & `.prettierignore`                           | Deterministic code formatting (`singleQuote`, `semi`, `printWidth: 100`) to keep agent PR diffs minimal and readable.                                                                                                  |
@@ -102,6 +102,8 @@ Most AI coding setups fail not because models cannot write syntax, but because t
 
 ## Quick Start
 
+**Prerequisites:** Node.js 22+ and `npm` (plus optional `jq` for pretty-printing `traces/runs.jsonl`). No Docker, external SaaS accounts, or API keys are required to run the full local workflow.
+
 ```bash
 npm install
 npx playwright install chromium
@@ -109,23 +111,24 @@ npx playwright install chromium
 
 ### Command Cheat Sheet
 
-| Command                                   | What It Runs                                                                                                                  |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `npm run dev`                             | Start the local Vite Calculator App (`http://localhost:5173`).                                                                |
-| `npm run build`                           | TypeScript typecheck (`tsc --noEmit`) + Vite production bundle.                                                               |
-| `npm run format` / `npm run format:check` | Format the repository with Prettier or assert formatting in CI.                                                               |
-| `npm run lint:docs`                       | Verify banned glossary synonyms, required `@persona:` tags, and bidirectional 1:1 Feature Map ↔ OpenSpec parity.              |
-| `npm run lint:arch`                       | Enforce `dependency-cruiser` module boundaries + prescriptive ESLint rules on `src/`.                                         |
-| `npm run lint:deadcode`                   | Detect and prune unused files, exports, and dependencies via `knip`.                                                          |
-| `npm run docs:state-chart`                | Regenerate `docs/state-chart.md` from `CALCULATOR_STATE_TRANSITIONS`.                                                         |
-| `npm run test:unit`                       | Vitest unit tests for parser, calculator state machine (including runtime phase transitions), and `LoopBudget` guardrails.    |
-| `npm run test:model`                      | `fast-check` model-based state machine tests (200 randomized command sequences).                                              |
-| `npm run test:cli`                        | `calc-verify` Feature Map contract test + Playwright integration tests (including PNG & trace ZIP checks).                    |
-| `npm run test:fuzz`                       | Playwright + `fast-check` randomized browser fuzzing against the live Vite app.                                               |
-| `npm run verify:cli -- ...`               | Run `calc-verify` manually against a running app or fixture URL.                                                              |
-| `npm run eval`                            | Run Promptfoo evals (deterministic + cost/latency offline; automatically includes `llm-rubric` when `OPENAI_API_KEY` is set). |
-| `npm run trace:demo`                      | Execute a traced `calc-verify` run and emit a real OpenTelemetry span to `traces/runs.jsonl`.                                 |
-| `npm run harvest:trace -- ...`            | Convert a failing OTel span into a regression test case in `evals/golden-dataset.yaml`.                                       |
+| Command                                   | What It Runs                                                                                                                                             |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                             | Start the local Vite Calculator App (`http://localhost:5173`).                                                                                           |
+| `npm run build`                           | TypeScript typecheck (`tsc --noEmit`) + Vite production bundle.                                                                                          |
+| `npm run format` / `npm run format:check` | Format the repository with Prettier or assert formatting in CI.                                                                                          |
+| `npm run lint:docs`                       | Verify banned glossary synonyms, required `@persona:` tags, and bidirectional 1:1 Feature Map ↔ OpenSpec parity.                                         |
+| `npm run lint:arch`                       | Enforce `dependency-cruiser` module boundaries + prescriptive ESLint rules on `src/`.                                                                    |
+| `npm run lint:deadcode`                   | Detect and prune unused files, exports, and dependencies via `knip`.                                                                                     |
+| `npm run docs:state-chart`                | Regenerate `docs/state-chart.md` from `CALCULATOR_STATE_TRANSITIONS`.                                                                                    |
+| `npm test`                                | Run the entire Vitest suite (`unit`, `model`, `cli`, and `fuzz`) in one command.                                                                         |
+| `npm run test:unit`                       | Vitest unit tests for parser, calculator state machine (including runtime phase transitions), and `LoopBudget` guardrails.                               |
+| `npm run test:model`                      | `fast-check` model-based state machine tests (200 randomized command sequences).                                                                         |
+| `npm run test:cli`                        | `calc-verify` Feature Map contract test + Playwright integration tests (including PNG & trace ZIP checks).                                               |
+| `npm run test:fuzz`                       | Playwright + `fast-check` randomized browser fuzzing against the live Vite app.                                                                          |
+| `npm run verify:cli -- ...`               | Run `calc-verify` manually against a running app or fixture URL.                                                                                         |
+| `npm run eval`                            | Run Promptfoo evals (offline stub by default; automatically includes `llm-rubric` when `OPENAI_API_KEY` is set; force offline via `eval:deterministic`). |
+| `npm run trace:demo`                      | Execute a traced `calc-verify` run and emit a real OpenTelemetry span to `traces/runs.jsonl`.                                                            |
+| `npm run harvest:trace -- ...`            | Convert a failing OTel span into a regression test case in `evals/golden-dataset.yaml`.                                                                  |
 
 ---
 
@@ -133,12 +136,12 @@ npx playwright install chromium
 
 ### Phase 1: Context, Discovery Skills & Governance
 
-1. **Plan & align with `/grill-with-docs`** (installed in `.agents/skills/grill-with-docs/SKILL.md`) before writing code so domain terms land in `docs/glossary.md`, hard choices become ADRs in `docs/adr/`, and specs update in place under `openspec/specs/`.
+1. **Plan & align with `/grill-with-docs`** (installed in `.agents/skills/grill-with-docs/SKILL.md`, with repo path mappings in `AGENTS.md`) before writing code so domain terms land in `docs/glossary.md`, hard choices become ADRs in `docs/adr/`, and specs update in place under `openspec/specs/`.
 2. **Lint documentation and 1:1 OpenSpec parity:**
    ```bash
    npm run lint:docs
    ```
-3. **Test the pre-tool guardrail hook:**
+3. **Test the pre-tool guardrail hook** (a standalone, harness-agnostic script that accepts either a CLI path argument as shown below or JSON stdin with `"file_path"` when wired into an agent's `PreToolUse` hook config):
    ```bash
    # Blocked: modifying calc-verify without explicit authorization
    .agent/hooks/pre-tool-guard.sh tools/calc-verify/index.ts
@@ -233,13 +236,17 @@ npm run eval
    cat traces/runs.jsonl | jq .
    ```
    _(Set `OTEL_EXPORTER_OTLP_ENDPOINT` in `.env` to stream spans to an OTLP HTTP collector instead of `traces/runs.jsonl`.)_
-2. **Harvest a failing trace into `evals/golden-dataset.yaml`** with `traceId` and `prompt.sha` provenance:
+2. **Harvest a failing trace into `evals/golden-dataset.yaml`** with `traceId` and `prompt.sha` provenance, then re-run `npm run eval` to verify the closed loop:
    ```bash
    # Preview against the included sample failing trace
    npm run harvest:trace -- --trace-id sample-fail-001 --file traces/sample-failed-trace.jsonl --dry-run
 
-   # Append the regression test case into evals/golden-dataset.yaml
+   # Append the regression test case into evals/golden-dataset.yaml and re-run evals
    npm run harvest:trace -- --trace-id sample-fail-001 --file traces/sample-failed-trace.jsonl
+   npm run eval
+
+   # Optional: revert the sample edit once you've tried the loop
+   git checkout -- evals/golden-dataset.yaml
    ```
 
 ---

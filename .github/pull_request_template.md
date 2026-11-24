@@ -19,9 +19,11 @@
 
 ## Automated Quality Gates
 
+- [ ] `npm run format:check`
 - [ ] `npm run lint:docs`
 - [ ] `npm run lint:arch`
 - [ ] `npm run lint:deadcode`
+- [ ] `npm run build`
 - [ ] `npm run test:unit` & `npm run test:model`
 - [ ] `npm run test:cli` & `npm run test:fuzz`
 - [ ] `npm run eval`

@@ -1,7 +1,8 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { load as parseYaml } from 'js-yaml';
+import { loadDotEnvIfPresent } from './env.ts';
 
 interface PromptfooAssertion {
   type: string;
@@ -50,7 +51,6 @@ const REPO_ROOT = resolve(import.meta.dirname, '..');
 const EVALS_DIR = join(REPO_ROOT, 'evals');
 const FULL_CONFIG_PATH = join(EVALS_DIR, 'promptfooconfig.yaml');
 const GOLDEN_DATASET_PATH = join(EVALS_DIR, 'golden-dataset.yaml');
-const ENV_PATH = join(REPO_ROOT, '.env');
 const GENERATED_DIR = join(REPO_ROOT, '.promptfoo');
 const GENERATED_CONFIG_PATH = join(GENERATED_DIR, 'deterministic.config.json');
 const GENERATED_LIVE_CONFIG_PATH = join(GENERATED_DIR, 'live.config.json');
@@ -68,31 +68,6 @@ const MODEL_ROUTES: readonly ModelRoute[] = [
     metadataFilter: 'route=doc-generator',
   },
 ];
-
-function loadDotEnvIfPresent(): void {
-  if (!existsSync(ENV_PATH)) {
-    return;
-  }
-  const content = readFileSync(ENV_PATH, 'utf-8');
-  for (const rawLine of content.split('\n')) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith('#')) {
-      continue;
-    }
-    const eqIndex = line.indexOf('=');
-    if (eqIndex <= 0) {
-      continue;
-    }
-    const key = line.slice(0, eqIndex).trim();
-    const value = line
-      .slice(eqIndex + 1)
-      .trim()
-      .replace(/^['"]|['"]$/g, '');
-    if (!(key in process.env)) {
-      process.env[key] = value;
-    }
-  }
-}
 
 function hasValidOpenAiKey(): boolean {
   const key = process.env.OPENAI_API_KEY?.trim();
