@@ -4,6 +4,13 @@ export default class DeterministicStubProvider {
   }
 
   async callApi(prompt) {
+    const tokenUsage = {
+      total: 420,
+      prompt: 320,
+      completion: 100,
+    };
+    const cost = 0.0001;
+
     if (prompt.includes('dividing 8 by 0')) {
       return {
         output: [
@@ -12,6 +19,8 @@ export default class DeterministicStubProvider {
           'Summary:',
           'Dividing 8 by 0 is not allowed, so the Primary Readout shows "Cannot divide by zero" and the math operation buttons are temporarily locked. Press All Clear (AC) to clear the message and start a new calculation.',
         ].join('\n'),
+        tokenUsage,
+        cost,
       };
     }
 
@@ -23,6 +32,8 @@ export default class DeterministicStubProvider {
           'Summary:',
           'Pressing Clear Entry (CE) removes only the number you just typed (4) while keeping your pending addition with 9, so typing 5 and pressing equals gives 14 in the Primary Readout. Use All Clear (AC) instead when you want to wipe the entire calculation back to 0.',
         ].join('\n'),
+        tokenUsage,
+        cost,
       };
     }
 
@@ -34,6 +45,8 @@ export default class DeterministicStubProvider {
           'Summary:',
           'The formula "2 + * 3" in the Expression Input is not valid math, so the Primary Readout shows "Invalid expression" and pauses the operator keys. Press All Clear (AC) to reset the calculator before entering a corrected expression.',
         ].join('\n'),
+        tokenUsage,
+        cost,
       };
     }
 
@@ -44,6 +57,8 @@ export default class DeterministicStubProvider {
         'Summary:',
         'The calculator was reset with All Clear (AC) and the Primary Readout shows 0.',
       ].join('\n'),
+      tokenUsage,
+      cost,
     };
   }
 }

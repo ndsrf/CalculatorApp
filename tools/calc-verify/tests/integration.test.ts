@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { existsSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -11,10 +12,26 @@ const BROKEN_FIXTURE_URL = pathToFileURL(
 ).href;
 
 describe('calc-verify integration tests', () => {
-  it('captures uncaught ReferenceError from broken-calc.html and returns status "error"', () => {
+  it('captures uncaught ReferenceError from broken-calc.html, saves failure trace, and returns status "error"', () => {
+    const traceOut = join(REPO_ROOT, 'traces', 'test-broken-trace.zip');
+    rmSync(traceOut, { force: true });
+
     const run = spawnSync(
       'npx',
-      ['tsx', CLI_PATH, 'press', '2', 'add', '2', 'equals', '--snapshot', '--url', BROKEN_FIXTURE_URL],
+      [
+        'tsx',
+        CLI_PATH,
+        'press',
+        '2',
+        'add',
+        '2',
+        'equals',
+        '--snapshot',
+        '--trace',
+        traceOut,
+        '--url',
+        BROKEN_FIXTURE_URL,
+      ],
       {
         cwd: REPO_ROOT,
         encoding: 'utf-8',
@@ -27,12 +44,28 @@ describe('calc-verify integration tests', () => {
     expect(parsed.console_errors.length).toBeGreaterThan(0);
     expect(parsed.console_errors.some((err) => err.includes('ReferenceError'))).toBe(true);
     expect(parsed.ui_state).not.toBeNull();
+    expect(existsSync(traceOut)).toBe(true);
+    rmSync(traceOut, { force: true });
   });
 
-  it('returns status "ok" with clean snapshot when --snapshot is passed', () => {
+  it('returns status "ok" with clean snapshot and writes PNG when --screenshot is passed', () => {
+    const screenshotOut = join(REPO_ROOT, 'traces', 'test-ok-screenshot.png');
+    rmSync(screenshotOut, { force: true });
+
     const run = spawnSync(
       'npx',
-      ['tsx', CLI_PATH, 'press', '4', '2', '--snapshot', '--url', BROKEN_FIXTURE_URL],
+      [
+        'tsx',
+        CLI_PATH,
+        'press',
+        '4',
+        '2',
+        '--snapshot',
+        '--screenshot',
+        screenshotOut,
+        '--url',
+        BROKEN_FIXTURE_URL,
+      ],
       {
         cwd: REPO_ROOT,
         encoding: 'utf-8',
@@ -44,6 +77,8 @@ describe('calc-verify integration tests', () => {
     expect(parsed.status).toBe('ok');
     expect(parsed.console_errors).toEqual([]);
     expect(parsed.ui_state?.display).toBe('42');
+    expect(existsSync(screenshotOut)).toBe(true);
+    rmSync(screenshotOut, { force: true });
   });
 
   it('omits ui_state when --snapshot is not passed and rejects non-pressable keys', () => {

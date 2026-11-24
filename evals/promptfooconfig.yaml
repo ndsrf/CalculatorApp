@@ -10,6 +10,10 @@ providers:
 
 defaultTest:
   assert:
+    - type: cost
+      threshold: 0.01
+    - type: latency
+      threshold: 5000
     - type: not-contains
       value: "#display-current"
     - type: not-contains

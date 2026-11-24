@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createInitialState,
   DIVISION_BY_ZERO_MESSAGE,
+  getCalculatorPhase,
   INVALID_EXPRESSION_MESSAGE,
   pressAllClear,
   pressClearEntry,
@@ -98,5 +99,33 @@ describe('calculator state machine', () => {
     state = submitExpression(state);
     expect(state.errorState).toBe(true);
     expect(state.display).toBe(INVALID_EXPRESSION_MESSAGE);
+  });
+
+  it('tracks runtime CalculatorPhase transitions matching the generated state chart', () => {
+    let state = createInitialState();
+    expect(getCalculatorPhase(state)).toBe('Idle');
+
+    state = pressDigit(state, '9');
+    expect(getCalculatorPhase(state)).toBe('EnteringDigit');
+
+    state = pressClearEntry(state);
+    expect(getCalculatorPhase(state)).toBe('Idle');
+
+    state = pressDigit(state, '9');
+    state = pressOperator(state, 'divide');
+    expect(getCalculatorPhase(state)).toBe('PendingOp');
+
+    state = pressDigit(state, '4');
+    expect(getCalculatorPhase(state)).toBe('EnteringDigit');
+
+    state = pressClearEntry(state);
+    expect(getCalculatorPhase(state)).toBe('PendingOp');
+
+    state = pressDigit(state, '0');
+    state = pressEquals(state);
+    expect(getCalculatorPhase(state)).toBe('ErrorState');
+
+    state = pressAllClear();
+    expect(getCalculatorPhase(state)).toBe('Idle');
   });
 });

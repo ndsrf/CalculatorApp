@@ -16,5 +16,5 @@
     "noFallthroughCasesInSwitch": true,
     "types": ["node"]
   },
-  "include": ["src", "scripts", "tools"]
+  "include": ["src", "scripts", "tools", "tests"]
 }

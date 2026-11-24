@@ -4,3 +4,5 @@ dist/
 .promptfoo/
 playwright-report/
 test-results/
+traces/*
+!traces/sample-failed-trace.jsonl

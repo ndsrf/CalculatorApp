@@ -29,6 +29,12 @@ jobs:
       - name: Lint docs and OpenSpec 1:1 governance
         run: npm run lint:docs
 
+      - name: Lint architecture and dependency graph
+        run: npm run lint:arch
+
+      - name: Generate and verify Mermaid state chart
+        run: npm run docs:state-chart && git diff --exit-code docs/state-chart.md
+
       - name: Typecheck and build app
         run: npm run build
 
@@ -41,7 +47,10 @@ jobs:
       - name: Run calc-verify contract and integration tests
         run: npm run test:cli
 
-      - name: Run Promptfoo evals
+      - name: Run Playwright + fast-check UI fuzzing tests
+        run: npm run test:fuzz
+
+      - name: Run Promptfoo evals (deterministic + cost/latency + llm-rubric)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: npm run eval

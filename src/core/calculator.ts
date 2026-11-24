@@ -9,6 +9,46 @@ export { DIVISION_BY_ZERO_MESSAGE, INVALID_EXPRESSION_MESSAGE };
 
 export type Operator = 'add' | 'subtract' | 'multiply' | 'divide';
 export type Digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
+export type CalculatorPhase = 'Idle' | 'EnteringDigit' | 'PendingOp' | 'ErrorState';
+
+export interface CalculatorTransition {
+  from: CalculatorPhase;
+  to: CalculatorPhase;
+  event: string;
+}
+
+export const CALCULATOR_STATE_TRANSITIONS: readonly CalculatorTransition[] = [
+  { from: 'Idle', to: 'EnteringDigit', event: 'pressDigit (0-9)' },
+  { from: 'Idle', to: 'PendingOp', event: 'pressOperator (+,-,*,/)' },
+  { from: 'Idle', to: 'Idle', event: 'submitExpression (valid) / pressClearEntry (CE) / pressAllClear (AC)' },
+  { from: 'Idle', to: 'ErrorState', event: 'submitExpression (div-by-zero / syntax error)' },
+  { from: 'EnteringDigit', to: 'EnteringDigit', event: 'pressDigit (0-9)' },
+  { from: 'EnteringDigit', to: 'PendingOp', event: 'pressOperator (+,-,*,/) / pressClearEntry (CE with pendingOp)' },
+  { from: 'EnteringDigit', to: 'Idle', event: 'pressEquals (valid) / submitExpression (valid) / pressClearEntry (CE without pendingOp) / pressAllClear (AC)' },
+  { from: 'EnteringDigit', to: 'ErrorState', event: 'pressEquals or pressOperator (div-by-zero) / submitExpression (error)' },
+  { from: 'PendingOp', to: 'EnteringDigit', event: 'pressDigit (0-9)' },
+  { from: 'PendingOp', to: 'PendingOp', event: 'pressOperator (switch op) / pressClearEntry (CE)' },
+  { from: 'PendingOp', to: 'Idle', event: 'pressEquals (valid) / submitExpression (valid) / pressAllClear (AC)' },
+  { from: 'PendingOp', to: 'ErrorState', event: 'pressEquals (div-by-zero) / submitExpression (error)' },
+  { from: 'ErrorState', to: 'ErrorState', event: 'pressDigit / pressOperator / pressEquals / CE / submitExpression (locked)' },
+  { from: 'ErrorState', to: 'Idle', event: 'pressAllClear (AC)' },
+];
+
+export function getCalculatorPhase(state: CalculatorState): CalculatorPhase {
+  if (state.errorState) {
+    return 'ErrorState';
+  }
+  if (state.pendingOp !== null && state.waitingForOperand) {
+    return 'PendingOp';
+  }
+  if (state.display === '0' && state.pendingOp === null && !state.waitingForOperand) {
+    return 'Idle';
+  }
+  if (state.waitingForOperand && state.pendingOp === null) {
+    return 'Idle';
+  }
+  return 'EnteringDigit';
+}
 
 const MAX_KEYPAD_DIGITS = 15;
 

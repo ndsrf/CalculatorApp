@@ -1,6 +1,7 @@
+import { mkdirSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { resolve } from 'node:path';
-import { chromium } from 'playwright';
+import { type BrowserContext, chromium } from 'playwright';
 
 export const DEFAULT_URL = 'http://localhost:5173';
 
@@ -40,15 +41,28 @@ export interface UiSnapshot {
   operators_disabled: boolean;
 }
 
+export interface VerifyArtifacts {
+  screenshot?: string;
+  trace?: string;
+}
+
 export interface VerifyResult {
   status: 'ok' | 'error';
   ui_state: UiSnapshot | null;
   console_errors: string[];
+  artifacts?: VerifyArtifacts;
+}
+
+interface CommonCliOptions {
+  snapshot: boolean;
+  url: string;
+  screenshotPath?: string;
+  tracePath?: string;
 }
 
 export type CliCommand =
-  | { kind: 'press'; keys: PressableKey[]; snapshot: boolean; url: string }
-  | { kind: 'type-expression'; expression: string; submit: boolean; snapshot: boolean; url: string };
+  | ({ kind: 'press'; keys: PressableKey[] } & CommonCliOptions)
+  | ({ kind: 'type-expression'; expression: string; submit: boolean } & CommonCliOptions);
 
 function isPressableKey(key: string): key is PressableKey {
   return key in PRESSABLE_KEY_SELECTORS;
@@ -61,23 +75,44 @@ function normalizeUrl(rawUrl: string): string {
   return pathToFileURL(resolve(rawUrl)).href;
 }
 
+function readFlagValue(argv: string[], index: number, flag: string): { value: string; nextIndex: number } {
+  const arg = argv[index];
+  if (arg === flag) {
+    const next = argv[index + 1];
+    if (!next) {
+      throw new Error(`Missing value for ${flag}`);
+    }
+    return { value: next, nextIndex: index + 1 };
+  }
+  const value = arg.slice(flag.length + 1);
+  if (!value) {
+    throw new Error(`Missing value for ${flag}`);
+  }
+  return { value, nextIndex: index };
+}
+
 export function parseCliArgs(argv: string[]): CliCommand {
   let url = DEFAULT_URL;
   let snapshot = false;
   let submit = false;
+  let screenshotPath: string | undefined;
+  let tracePath: string | undefined;
   const positional: string[] = [];
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === '--url') {
-      const next = argv[i + 1];
-      if (!next) {
-        throw new Error('Missing value for --url');
-      }
-      url = next;
-      i += 1;
-    } else if (arg.startsWith('--url=')) {
-      url = arg.slice('--url='.length);
+    if (arg === '--url' || arg.startsWith('--url=')) {
+      const parsed = readFlagValue(argv, i, '--url');
+      url = parsed.value;
+      i = parsed.nextIndex;
+    } else if (arg === '--screenshot' || arg.startsWith('--screenshot=')) {
+      const parsed = readFlagValue(argv, i, '--screenshot');
+      screenshotPath = resolve(parsed.value);
+      i = parsed.nextIndex;
+    } else if (arg === '--trace' || arg.startsWith('--trace=')) {
+      const parsed = readFlagValue(argv, i, '--trace');
+      tracePath = resolve(parsed.value);
+      i = parsed.nextIndex;
     } else if (arg === '--snapshot') {
       snapshot = true;
     } else if (arg === '--submit') {
@@ -100,7 +135,14 @@ export function parseCliArgs(argv: string[]): CliCommand {
       }
       keys.push(key);
     }
-    return { kind: 'press', keys, snapshot, url: normalizeUrl(url) };
+    return {
+      kind: 'press',
+      keys,
+      snapshot,
+      url: normalizeUrl(url),
+      screenshotPath,
+      tracePath,
+    };
   }
 
   if (subcommand === 'type-expression') {
@@ -108,20 +150,49 @@ export function parseCliArgs(argv: string[]): CliCommand {
     if (expression === undefined) {
       throw new Error('type-expression requires an expression string argument');
     }
-    return { kind: 'type-expression', expression, submit, snapshot, url: normalizeUrl(url) };
+    return {
+      kind: 'type-expression',
+      expression,
+      submit,
+      snapshot,
+      url: normalizeUrl(url),
+      screenshotPath,
+      tracePath,
+    };
   }
 
   throw new Error(
-    'Usage:\n  calc-verify press <keys...> [--snapshot] [--url <url>]\n  calc-verify type-expression "<expr>" [--submit] [--snapshot] [--url <url>]'
+    'Usage:\n  calc-verify press <keys...> [--snapshot] [--screenshot <path>] [--trace <path>] [--url <url>]\n  calc-verify type-expression "<expr>" [--submit] [--snapshot] [--screenshot <path>] [--trace <path>] [--url <url>]'
   );
+}
+
+async function stopTracing(
+  context: BrowserContext,
+  targetTracePath: string | undefined,
+  artifacts: VerifyArtifacts
+): Promise<void> {
+  if (targetTracePath) {
+    mkdirSync(dirname(targetTracePath), { recursive: true });
+    await context.tracing.stop({ path: targetTracePath });
+    artifacts.trace = targetTracePath;
+  } else {
+    await context.tracing.stop();
+  }
 }
 
 export async function runVerify(command: CliCommand): Promise<VerifyResult> {
   const consoleErrors: string[] = [];
+  const artifacts: VerifyArtifacts = {};
   const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext();
+  const autoFailureTracePath = resolve('traces', 'last-failure-trace.zip');
+  let tracingStarted = false;
 
   try {
-    const page = await browser.newPage();
+    await context.tracing.start({ screenshots: true, snapshots: true });
+    tracingStarted = true;
+
+    const page = await context.newPage();
 
     page.on('pageerror', (err) => {
       consoleErrors.push(err.message ? `${err.name}: ${err.message}` : String(err));
@@ -160,6 +231,12 @@ export async function runVerify(command: CliCommand): Promise<VerifyResult> {
       }
     }
 
+    if (command.screenshotPath) {
+      mkdirSync(dirname(command.screenshotPath), { recursive: true });
+      await page.screenshot({ path: command.screenshotPath, fullPage: true });
+      artifacts.screenshot = command.screenshotPath;
+    }
+
     let uiState: UiSnapshot | null = null;
     if (command.snapshot) {
       const displayLocator = page.locator(FEATURE_SELECTORS['display-current']);
@@ -187,20 +264,34 @@ export async function runVerify(command: CliCommand): Promise<VerifyResult> {
       };
     }
 
+    const status: 'ok' | 'error' = consoleErrors.length > 0 ? 'error' : 'ok';
+    if (tracingStarted) {
+      const targetTracePath =
+        command.tracePath ?? (status === 'error' ? autoFailureTracePath : undefined);
+      await stopTracing(context, targetTracePath, artifacts);
+      tracingStarted = false;
+    }
+
     return {
-      status: consoleErrors.length > 0 ? 'error' : 'ok',
+      status,
       ui_state: uiState,
       console_errors: consoleErrors,
+      ...(Object.keys(artifacts).length > 0 ? { artifacts } : {}),
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     consoleErrors.push(message);
+    if (tracingStarted) {
+      await stopTracing(context, command.tracePath ?? autoFailureTracePath, artifacts);
+    }
     return {
       status: 'error',
       ui_state: null,
       console_errors: consoleErrors,
+      ...(Object.keys(artifacts).length > 0 ? { artifacts } : {}),
     };
   } finally {
+    await context.close();
     await browser.close();
   }
 }

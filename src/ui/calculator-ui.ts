@@ -10,7 +10,7 @@ import {
   pressOperator,
   setExpressionInput,
   submitExpression,
-} from '../core/calculator.ts';
+} from '../core/index.ts';
 
 const TEMPLATE = `
 <section class="calculator" aria-label="Calculator">

@@ -99,3 +99,47 @@ npm run eval
 ```bash
 npm run build
 ```
+
+---
+
+## Observability & Advanced Guardrails
+
+### OpenTelemetry Tracing & Business Outcomes
+Run a traced verification flow that emits a local OpenTelemetry span (with `gen_ai.*`, `prompt.sha`, `outcome.status`, `outcome.leaked_selector`, `outcome.tool_calls_count`, and `LoopBudget` circuit breaker metadata) to `traces/runs.jsonl` (or to an OTLP HTTP collector if `OTEL_EXPORTER_OTLP_ENDPOINT` is set):
+```bash
+npm run trace:demo
+cat traces/runs.jsonl | jq .
+```
+
+### Harvest a Failing Trace into the Golden Eval Dataset
+Preview or append a failing trace directly into `evals/golden-dataset.yaml` with `traceId` and `prompt.sha` provenance:
+```bash
+# Dry-run against the included sample failing trace
+npm run harvest:trace -- --trace-id sample-fail-001 --file traces/sample-failed-trace.jsonl --dry-run
+
+# Append into evals/golden-dataset.yaml
+npm run harvest:trace -- --trace-id sample-fail-001 --file traces/sample-failed-trace.jsonl
+```
+
+### Visual Verification Artifacts & Auto-Generated State Chart
+Capture a PNG screenshot and Playwright trace ZIP during `calc-verify` runs (failures also auto-save a trace ZIP to `traces/last-failure-trace.zip`):
+```bash
+npm run verify:cli -- press 8 divide 0 equals --snapshot --screenshot traces/div-zero.png --trace traces/div-zero.zip
+```
+
+Regenerate the Mermaid `stateDiagram-v2` state chart (`docs/state-chart.md`) directly from `CALCULATOR_STATE_TRANSITIONS` in `src/core/calculator.ts`:
+```bash
+npm run docs:state-chart
+```
+
+### Architectural Linting & UI Property-Based Fuzzing
+Enforce strict `src/core` / `src/ui` / `tools` / `evals` dependency boundaries (`dependency-cruiser`) plus prescriptive ESLint rules banning `eval()`, `new Function()`, browser globals in `src/core/`, and inline explanatory comments:
+```bash
+npm run lint:arch
+```
+
+Run randomized Playwright + `fast-check` browser fuzzing against the live Vite app:
+```bash
+npm run test:fuzz
+```
+
