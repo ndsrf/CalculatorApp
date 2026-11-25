@@ -83,7 +83,7 @@ const STUB_FIXTURES: Readonly<Record<string, readonly string[]>> = {
   "alert('xss') plus 2": ["alert('xss') + 2"],
 };
 
-function normalizeQuestion(question: string): string {
+export function normalizeQuestion(question: string): string {
   return question
     .toLowerCase()
     .replace(/\s+/g, ' ')

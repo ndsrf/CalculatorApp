@@ -25,6 +25,7 @@ Before proposing or implementing any change, you MUST read:
 | Observe the app as an agent         | `npm run dev`, then `npm run verify:cli -- press 1 add 2 equals --snapshot`    |
 | Observe the AI feature as an agent  | `npm run dev`, then `npm run verify:cli -- ask "15% of 80, plus 5" --snapshot` |
 | Evaluate the AI feature             | `npm run eval` (offline stub unless `AI_*` is set; see `.env.example`)         |
+| See evals fail without a key        | `npm run eval:simulate` (real evals vs. a scripted flawed model)               |
 | Regenerate the state chart          | `npm run docs:state-chart`                                                     |
 
 ## 3. Workflow & Definition of Done

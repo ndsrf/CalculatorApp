@@ -27,6 +27,7 @@
     "verify:cli": "tsx tools/calc-verify/index.ts",
     "eval": "tsx scripts/run-eval.ts",
     "eval:deterministic": "tsx scripts/run-eval.ts --deterministic",
+    "eval:simulate": "tsx scripts/simulate-eval.ts",
     "check": "npm run format:check && npm run lint:docs && npm run lint:arch && npm run lint:deadcode && npm run docs:state-chart && git diff --exit-code docs/state-chart.md && npm run build && npm test && npm run eval:deterministic"
   },
   "devDependencies": {

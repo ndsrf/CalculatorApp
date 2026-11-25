@@ -36,7 +36,15 @@ function main(): void {
 
   const result = spawnSync(
     'npx',
-    ['promptfoo', 'eval', '-c', CONFIG_PATH, '--no-cache', '--no-write'],
+    [
+      'promptfoo',
+      'eval',
+      '-c',
+      CONFIG_PATH,
+      '--no-cache',
+      '--no-write',
+      ...process.argv.slice(2).filter((arg) => arg !== '--deterministic'),
+    ],
     {
       cwd: REPO_ROOT,
       stdio: 'inherit',
