@@ -28,7 +28,7 @@
 
 ## 5. Verification & evals
 
-- [x] 5.1 `calc-verify ask` command + contract/integration tests (human-authorized `ALLOW_VERIFY_EDIT=1`)
+- [x] 5.1 `calc-verify ask` command + contract/integration tests (blocked by the guardrail for an agent; applied after the repository owner explicitly authorized the reviewed patch)
 - [x] 5.2 UI fuzzing includes questions
 - [x] 5.3 Golden dataset runs the real translation pipeline (functional, edge, safety)
 - [x] 5.4 `trace:demo` and `harvest:trace` operate on real translation spans

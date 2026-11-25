@@ -31,12 +31,17 @@ export type PressableKey = keyof typeof PRESSABLE_KEY_SELECTORS;
 export const FEATURE_SELECTORS: Record<string, string> = {
   'display-current': '#display-current',
   'expression-input': '#expression-input',
+  'natural-language-input': '#natural-language-input',
+  'translate-question': '[data-action="translate-question"]',
   ...PRESSABLE_KEY_SELECTORS,
 };
+
+const TRANSLATION_SETTLED_SELECTOR = '[data-action="translate-question"][aria-busy="false"]';
 
 export interface UiSnapshot {
   display: string;
   expression_input: string;
+  natural_language_input: string;
   error_state: boolean;
   operators_disabled: boolean;
 }
@@ -62,7 +67,8 @@ interface CommonCliOptions {
 
 export type CliCommand =
   | ({ kind: 'press'; keys: PressableKey[] } & CommonCliOptions)
-  | ({ kind: 'type-expression'; expression: string; submit: boolean } & CommonCliOptions);
+  | ({ kind: 'type-expression'; expression: string; submit: boolean } & CommonCliOptions)
+  | ({ kind: 'ask'; question: string } & CommonCliOptions);
 
 function isPressableKey(key: string): key is PressableKey {
   return key in PRESSABLE_KEY_SELECTORS;
@@ -165,8 +171,23 @@ export function parseCliArgs(argv: string[]): CliCommand {
     };
   }
 
+  if (subcommand === 'ask') {
+    const question = positional[1];
+    if (question === undefined) {
+      throw new Error('ask requires a question string argument');
+    }
+    return {
+      kind: 'ask',
+      question,
+      snapshot,
+      url: normalizeUrl(url),
+      screenshotPath,
+      tracePath,
+    };
+  }
+
   throw new Error(
-    'Usage:\n  calc-verify press <keys...> [--snapshot] [--screenshot <path>] [--trace <path>] [--url <url>]\n  calc-verify type-expression "<expr>" [--submit] [--snapshot] [--screenshot <path>] [--trace <path>] [--url <url>]',
+    'Usage:\n  calc-verify press <keys...> [--snapshot] [--screenshot <path>] [--trace <path>] [--url <url>]\n  calc-verify type-expression "<expr>" [--submit] [--snapshot] [--screenshot <path>] [--trace <path>] [--url <url>]\n  calc-verify ask "<question>" [--snapshot] [--screenshot <path>] [--trace <path>] [--url <url>]',
   );
 }
 
@@ -219,6 +240,20 @@ export async function runVerify(command: CliCommand): Promise<VerifyResult> {
           await locator.click({ timeout: 5000 });
         }
       }
+    } else if (command.kind === 'ask') {
+      const questionLocator = page.locator(FEATURE_SELECTORS['natural-language-input']);
+      await questionLocator.waitFor({ state: 'attached', timeout: 5000 });
+      if (!(await questionLocator.isDisabled())) {
+        await questionLocator.fill(command.question);
+        const translateLocator = page.locator(FEATURE_SELECTORS['translate-question']);
+        if (!(await translateLocator.isDisabled())) {
+          await translateLocator.click({ timeout: 5000 });
+        }
+        await page.locator(TRANSLATION_SETTLED_SELECTOR).waitFor({
+          state: 'attached',
+          timeout: 30000,
+        });
+      }
     } else {
       const inputLocator = page.locator(FEATURE_SELECTORS['expression-input']);
       await inputLocator.waitFor({ state: 'attached', timeout: 5000 });
@@ -248,6 +283,9 @@ export async function runVerify(command: CliCommand): Promise<VerifyResult> {
       const displayText = ((await displayLocator.textContent()) ?? '').trim();
       const expressionValue =
         (await expressionLocator.count()) > 0 ? await expressionLocator.inputValue() : '';
+      const questionLocator = page.locator(FEATURE_SELECTORS['natural-language-input']);
+      const questionValue =
+        (await questionLocator.count()) > 0 ? await questionLocator.inputValue() : '';
 
       const operatorSelectors = ['add', 'subtract', 'multiply', 'divide'].map(
         (op) => FEATURE_SELECTORS[op],
@@ -263,6 +301,7 @@ export async function runVerify(command: CliCommand): Promise<VerifyResult> {
       uiState = {
         display: displayText,
         expression_input: expressionValue,
+        natural_language_input: questionValue,
         error_state: operatorsDisabled,
         operators_disabled: operatorsDisabled,
       };

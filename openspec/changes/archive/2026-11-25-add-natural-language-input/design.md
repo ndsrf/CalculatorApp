@@ -1,6 +1,6 @@
 # Design: Add Natural Language Input
 
-Architectural rationale is recorded in [`docs/adr/002-ai-translates-parser-decides.md`](../../../docs/adr/002-ai-translates-parser-decides.md). This document covers the concrete shape of the change.
+Architectural rationale is recorded in [`docs/adr/002-ai-translates-parser-decides.md`](../../../../docs/adr/002-ai-translates-parser-decides.md). This document covers the concrete shape of the change.
 
 ## Flow
 
