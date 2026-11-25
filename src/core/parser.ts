@@ -188,6 +188,20 @@ class RecursiveDescentParser {
   }
 }
 
+export type ExpressionCheck = { ok: true } | { ok: false; reason: string };
+
+export function checkExpressionSyntax(expression: string): ExpressionCheck {
+  try {
+    evaluateExpression(expression);
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof DivisionByZeroError) {
+      return { ok: true };
+    }
+    return { ok: false, reason: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 export function evaluateExpression(expression: string): number {
   const tokens = tokenize(expression);
   return new RecursiveDescentParser(tokens).parse();

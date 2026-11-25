@@ -1,8 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const REPO_ROOT = resolve(import.meta.dirname, '..');
-const DEFAULT_ENV_PATH = join(REPO_ROOT, '.env');
+const DEFAULT_ENV_PATH = fileURLToPath(new URL('../.env', import.meta.url));
 
 export function loadDotEnvIfPresent(envPath = DEFAULT_ENV_PATH): void {
   if (!existsSync(envPath)) {

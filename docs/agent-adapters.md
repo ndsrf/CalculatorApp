@@ -9,15 +9,15 @@ neutral artifacts into whichever tool you use.
 
 ## The Neutral Contract
 
-| Concept            | Neutral artifact in this repo                                           | What your tool needs to do with it                                                               |
-| ------------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Operating rules    | [`AGENTS.md`](../AGENTS.md)                                             | Load it into every session as project instructions.                                              |
-| Reusable workflows | [`.agents/skills/*/SKILL.md`](../.agents/skills/)                       | Expose them as skills / slash commands / saved prompts.                                          |
-| Pre-edit guardrail | [`.agents/hooks/pre-tool-guard.sh`](../.agents/hooks/pre-tool-guard.sh) | Run it before any file write; block the write when it exits `2`.                                 |
-| Context exclusion  | [`.cursorignore`](../.cursorignore) (reference list)                    | Keep `traces/`, archived changes and build output out of agent context.                          |
-| Model choice       | `model_routing.tier` in [`prompts/*.md`](../prompts/)                   | Map tiers to concrete models via `EVAL_PROVIDER_<TIER>` (see [`.env.example`](../.env.example)). |
-| Agent's eyes       | `npm run verify:cli` ([`tools/calc-verify/`](../tools/calc-verify/))    | Let the agent run it as a shell command to observe the real UI.                                  |
-| Hard gates         | `npm run check` + CI                                                    | Nothing to wire: they run regardless of which agent wrote the code.                              |
+| Concept            | Neutral artifact in this repo                                           | What your tool needs to do with it                                                          |
+| ------------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Operating rules    | [`AGENTS.md`](../AGENTS.md)                                             | Load it into every session as project instructions.                                         |
+| Reusable workflows | [`.agents/skills/*/SKILL.md`](../.agents/skills/)                       | Expose them as skills / slash commands / saved prompts.                                     |
+| Pre-edit guardrail | [`.agents/hooks/pre-tool-guard.sh`](../.agents/hooks/pre-tool-guard.sh) | Run it before any file write; block the write when it exits `2`.                            |
+| Context exclusion  | [`.cursorignore`](../.cursorignore) (reference list)                    | Keep `traces/`, archived changes and build output out of agent context.                     |
+| Model choice       | `model_routing.tier` in [`prompts/*.md`](../prompts/)                   | Map tiers to concrete models via `AI_MODEL_<TIER>` (see [`.env.example`](../.env.example)). |
+| Agent's eyes       | `npm run verify:cli` ([`tools/calc-verify/`](../tools/calc-verify/))    | Let the agent run it as a shell command to observe the real UI.                             |
+| Hard gates         | `npm run check` + CI                                                    | Nothing to wire: they run regardless of which agent wrote the code.                         |
 
 The last row is the important one: **the gates that matter most do not depend on the agent at all.** If
 your tool supports none of the adapters below, the repo still protects itself through linters, tests,
@@ -83,19 +83,30 @@ not consume agent context (`traces/`, `openspec/changes/archive/`, `dist/`, test
 Mirror that list in whatever mechanism your tool provides (an ignore file, a deny-list in its settings, or
 workspace exclusions). `.gitignore`d paths are already excluded by most tools.
 
-## 5. Models & Providers
+## 5. Models & Providers (the app's AI feature)
 
-Prompts never name a vendor model. They declare a **tier** (`frontier` or `lightweight`) and a rationale.
-`npm run eval` resolves each tier from environment variables:
+This section is about the model the **product** uses (the Expression Translator), not the coding agent
+you develop with. They are independent: you can build this repo with one vendor's agent and run the
+feature on another vendor's model, or on a local one.
+
+Prompts never name a vendor model. They declare a **tier** and a rationale, and configuration maps the
+tier to a model:
 
 ```bash
-EVAL_PROVIDER_FRONTIER=<any Promptfoo provider id>
-EVAL_PROVIDER_LIGHTWEIGHT=<any Promptfoo provider id>
-EVAL_PROVIDER_JUDGE=<optional; defaults to the frontier provider>
+AI_BASE_URL=<OpenAI-compatible Chat Completions base URL, e.g. ending in /v1>
+AI_API_KEY=<key, if your provider needs one>
+AI_MODEL_LIGHTWEIGHT=<a model id offered by that provider>
 ```
 
-Any [Promptfoo provider](https://www.promptfoo.dev/docs/providers/) works, including fully local models.
-With nothing configured, evals run offline against a deterministic stub so CI never needs a key.
+- The **app** (`npm run dev`), **evals** (`npm run eval`), and **trace demo** (`npm run trace:demo`) all read
+  the same settings, so what you evaluate is what you run.
+- Many hosted providers and local runtimes expose an OpenAI-compatible endpoint; check your provider's
+  docs for its base URL. If yours doesn't, add a small client next to `createOpenAiCompatibleClient` in
+  [`src/ai/model-clients.ts`](../src/ai/model-clients.ts). Nothing else needs to change.
+- With nothing configured, everything uses the deterministic stub, so CI never needs a key.
+- **Behind a corporate proxy?** Promptfoo routes model calls through `HTTPS_PROXY`, and in our testing it
+  did so even for `localhost` despite `NO_PROXY`. If you evaluate a local model (e.g. on
+  `http://localhost:11434/v1`), unset the proxy variables for that command.
 
 Swapping vendors should be a configuration change that you **validate by re-running the same evals**,
 never a code change. If scores drop after a swap, that's the evals doing their job.

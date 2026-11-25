@@ -20,6 +20,7 @@
 
 - [ ] Attached `calc-verify` JSON snapshot (and PNG screenshot / Playwright trace ZIP for UI changes)
 - [ ] Updated `docs/state-chart.md` via `npm run docs:state-chart` (if state transitions changed)
+- [ ] If `prompts/` or `src/ai/` changed: prompt `version` bumped, golden cases added, and `npm run eval` output attached (live model run if possible, noting which model)
 
 ```json
 // Paste `npm run verify:cli -- ... --snapshot` output here

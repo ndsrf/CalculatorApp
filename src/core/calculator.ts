@@ -1,11 +1,18 @@
 import {
+  checkExpressionSyntax,
   DIVISION_BY_ZERO_MESSAGE,
   DivisionByZeroError,
   evaluateExpression,
   INVALID_EXPRESSION_MESSAGE,
 } from './parser.ts';
 
-export { DIVISION_BY_ZERO_MESSAGE, INVALID_EXPRESSION_MESSAGE };
+export { checkExpressionSyntax, DIVISION_BY_ZERO_MESSAGE, INVALID_EXPRESSION_MESSAGE };
+export type { ExpressionCheck } from './parser.ts';
+
+export const TRANSLATION_FAILED_MESSAGE = 'Could not translate question';
+
+export type TranslationOutcome =
+  { status: 'translated'; expression: string } | { status: 'failed' };
 
 export type Operator = 'add' | 'subtract' | 'multiply' | 'divide';
 export type Digit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
@@ -23,9 +30,15 @@ export const CALCULATOR_STATE_TRANSITIONS: readonly CalculatorTransition[] = [
   {
     from: 'Idle',
     to: 'Idle',
-    event: 'submitExpression (valid) / pressClearEntry (CE) / pressAllClear (AC)',
+    event:
+      'submitExpression (valid) / applyTranslation (valid) / pressClearEntry (CE) / pressAllClear (AC)',
   },
-  { from: 'Idle', to: 'ErrorState', event: 'submitExpression (div-by-zero / syntax error)' },
+  {
+    from: 'Idle',
+    to: 'ErrorState',
+    event:
+      'submitExpression or applyTranslation (div-by-zero / syntax error) / applyTranslation (failed)',
+  },
   { from: 'EnteringDigit', to: 'EnteringDigit', event: 'pressDigit (0-9)' },
   {
     from: 'EnteringDigit',
@@ -36,29 +49,33 @@ export const CALCULATOR_STATE_TRANSITIONS: readonly CalculatorTransition[] = [
     from: 'EnteringDigit',
     to: 'Idle',
     event:
-      'pressEquals (valid) / submitExpression (valid) / pressClearEntry (CE without pendingOp) / pressAllClear (AC)',
+      'pressEquals (valid) / submitExpression or applyTranslation (valid) / pressClearEntry (CE without pendingOp) / pressAllClear (AC)',
   },
   {
     from: 'EnteringDigit',
     to: 'ErrorState',
-    event: 'pressEquals or pressOperator (div-by-zero) / submitExpression (error)',
+    event:
+      'pressEquals or pressOperator (div-by-zero) / submitExpression (error) / applyTranslation (error or failed)',
   },
   { from: 'PendingOp', to: 'EnteringDigit', event: 'pressDigit (0-9)' },
   { from: 'PendingOp', to: 'PendingOp', event: 'pressOperator (switch op) / pressClearEntry (CE)' },
   {
     from: 'PendingOp',
     to: 'Idle',
-    event: 'pressEquals (valid) / submitExpression (valid) / pressAllClear (AC)',
+    event:
+      'pressEquals (valid) / submitExpression or applyTranslation (valid) / pressAllClear (AC)',
   },
   {
     from: 'PendingOp',
     to: 'ErrorState',
-    event: 'pressEquals (div-by-zero) / submitExpression (error)',
+    event:
+      'pressEquals (div-by-zero) / submitExpression (error) / applyTranslation (error or failed)',
   },
   {
     from: 'ErrorState',
     to: 'ErrorState',
-    event: 'pressDigit / pressOperator / pressEquals / CE / submitExpression (locked)',
+    event:
+      'pressDigit / pressOperator / pressEquals / CE / submitExpression / applyTranslation (locked)',
   },
   { from: 'ErrorState', to: 'Idle', event: 'pressAllClear (AC)' },
 ];
@@ -86,6 +103,7 @@ export interface CalculatorState {
   accumulator: number | null;
   pendingOp: Operator | null;
   expressionInput: string;
+  naturalLanguageInput: string;
   errorState: boolean;
   waitingForOperand: boolean;
 }
@@ -96,6 +114,7 @@ export function createInitialState(): CalculatorState {
     accumulator: null,
     pendingOp: null,
     expressionInput: '',
+    naturalLanguageInput: '',
     errorState: false,
     waitingForOperand: false,
   };
@@ -255,6 +274,7 @@ export function pressClearEntry(state: CalculatorState): CalculatorState {
     ...state,
     display: '0',
     expressionInput: '',
+    naturalLanguageInput: '',
     waitingForOperand: state.pendingOp !== null,
   };
 }
@@ -294,4 +314,33 @@ export function submitExpression(state: CalculatorState): CalculatorState {
       waitingForOperand: true,
     }),
   );
+}
+
+export function setNaturalLanguageInput(
+  state: CalculatorState,
+  naturalLanguageInput: string,
+): CalculatorState {
+  if (state.errorState) {
+    return state;
+  }
+
+  return {
+    ...state,
+    naturalLanguageInput,
+  };
+}
+
+export function applyTranslation(
+  state: CalculatorState,
+  outcome: TranslationOutcome,
+): CalculatorState {
+  if (state.errorState) {
+    return state;
+  }
+
+  if (outcome.status === 'failed') {
+    return enterErrorState({ ...state, expressionInput: '' }, TRANSLATION_FAILED_MESSAGE);
+  }
+
+  return submitExpression({ ...state, expressionInput: outcome.expression });
 }

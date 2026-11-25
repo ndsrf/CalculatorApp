@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyTranslation,
   createInitialState,
   DIVISION_BY_ZERO_MESSAGE,
   getCalculatorPhase,
@@ -10,8 +11,11 @@ import {
   pressEquals,
   pressOperator,
   setExpressionInput,
+  setNaturalLanguageInput,
   submitExpression,
+  TRANSLATION_FAILED_MESSAGE,
 } from './calculator.ts';
+import { checkExpressionSyntax } from './parser.ts';
 
 describe('calculator state machine', () => {
   it('performs basic keypad arithmetic', () => {
@@ -127,5 +131,66 @@ describe('calculator state machine', () => {
 
     state = pressAllClear();
     expect(getCalculatorPhase(state)).toBe('Idle');
+  });
+
+  it('writes a translated expression into Expression Input and evaluates it with the safe parser', () => {
+    let state = setNaturalLanguageInput(createInitialState(), '15% of 80, plus 5');
+    state = applyTranslation(state, { status: 'translated', expression: '15 / 100 * 80 + 5' });
+
+    expect(state.expressionInput).toBe('15 / 100 * 80 + 5');
+    expect(state.naturalLanguageInput).toBe('15% of 80, plus 5');
+    expect(state.display).toBe('17');
+    expect(state.errorState).toBe(false);
+  });
+
+  it('never trusts translated text: malformed or malicious expressions enter errorState', () => {
+    const malicious = applyTranslation(createInitialState(), {
+      status: 'translated',
+      expression: 'process.exit(1)',
+    });
+    expect(malicious.errorState).toBe(true);
+    expect(malicious.display).toBe(INVALID_EXPRESSION_MESSAGE);
+
+    const divByZero = applyTranslation(createInitialState(), {
+      status: 'translated',
+      expression: '10 / 0',
+    });
+    expect(divByZero.display).toBe(DIVISION_BY_ZERO_MESSAGE);
+  });
+
+  it('enters errorState on a failed translation, locks further input, and recovers on AC', () => {
+    const previous = applyTranslation(createInitialState(), {
+      status: 'translated',
+      expression: '9 / 2 + 1',
+    });
+    let state = applyTranslation(previous, { status: 'failed' });
+    expect(state.errorState).toBe(true);
+    expect(state.expressionInput).toBe('');
+    expect(state.display).toBe(TRANSLATION_FAILED_MESSAGE);
+    expect(getCalculatorPhase(state)).toBe('ErrorState');
+
+    expect(setNaturalLanguageInput(state, 'what is 2 plus 2')).toEqual(state);
+    expect(applyTranslation(state, { status: 'translated', expression: '2 + 2' })).toEqual(state);
+
+    state = pressAllClear();
+    expect(state).toEqual(createInitialState());
+  });
+
+  it('clears Natural Language Input on CE without touching the pending accumulator', () => {
+    let state = pressDigit(createInitialState(), '9');
+    state = pressOperator(state, 'add');
+    state = setNaturalLanguageInput(state, 'half of 9 plus 1');
+    state = pressClearEntry(state);
+
+    expect(state.naturalLanguageInput).toBe('');
+    expect(state.accumulator).toBe(9);
+    expect(state.pendingOp).toBe('add');
+  });
+
+  it('treats division by zero as well-formed syntax but rejects malformed expressions', () => {
+    expect(checkExpressionSyntax('(12 + 8) / 4')).toEqual({ ok: true });
+    expect(checkExpressionSyntax('10 / 0')).toEqual({ ok: true });
+    expect(checkExpressionSyntax('9 / 2 + 1 = 5.5')).toMatchObject({ ok: false });
+    expect(checkExpressionSyntax('process.exit(1)')).toMatchObject({ ok: false });
   });
 });
