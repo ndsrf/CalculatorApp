@@ -1,6 +1,7 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import {
+  applyTranslation,
   type CalculatorState,
   createInitialState,
   type Digit,
@@ -13,6 +14,8 @@ import {
   pressOperator,
   setExpressionInput,
   submitExpression,
+  TRANSLATION_FAILED_MESSAGE,
+  type TranslationOutcome,
 } from './calculator.ts';
 import { DivisionByZeroError, evaluateExpression } from './parser.ts';
 
@@ -148,6 +151,7 @@ class ClearEntryCommand implements fc.Command<ReferenceModel, CalculatorSystem> 
 
     expect(sys.state.display).toBe('0');
     expect(sys.state.expressionInput).toBe('');
+    expect(sys.state.naturalLanguageInput).toBe('');
     expect(sys.state.accumulator).toBe(before.accumulator);
     expect(sys.state.pendingOp).toBe(before.pendingOp);
     expect(sys.state.waitingForOperand).toBe(before.pendingOp !== null);
@@ -222,6 +226,46 @@ class SubmitExpressionCommand implements fc.Command<ReferenceModel, CalculatorSy
   }
 }
 
+class TranslationCommand implements fc.Command<ReferenceModel, CalculatorSystem> {
+  constructor(readonly outcome: TranslationOutcome) {}
+
+  check(): boolean {
+    return true;
+  }
+
+  run(model: ReferenceModel, sys: CalculatorSystem): void {
+    const before = sys.state;
+    sys.state = applyTranslation(sys.state, this.outcome);
+    assertInvariants(sys.state);
+
+    if (model.errorState) {
+      expect(sys.state).toEqual(before);
+      return;
+    }
+
+    if (this.outcome.status === 'failed') {
+      expect(sys.state.errorState).toBe(true);
+      expect(sys.state.display).toBe(TRANSLATION_FAILED_MESSAGE);
+      expect(sys.state.expressionInput).toBe('');
+    } else {
+      expect(sys.state.expressionInput).toBe(this.outcome.expression);
+      let expectedError = false;
+      try {
+        evaluateExpression(this.outcome.expression);
+      } catch {
+        expectedError = true;
+      }
+      expect(sys.state.errorState).toBe(expectedError);
+    }
+
+    model.errorState = sys.state.errorState;
+  }
+
+  toString(): string {
+    return `applyTranslation(${JSON.stringify(this.outcome)})`;
+  }
+}
+
 const digitArb = fc.constantFrom<Digit>('0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
 const opArb = fc.constantFrom<Operator>('add', 'subtract', 'multiply', 'divide');
 const expressionArb = fc.oneof(
@@ -250,10 +294,19 @@ const allCommands = [
   fc.constant(new ClearEntryCommand()),
   fc.constant(new AllClearCommand()),
   expressionArb.map((expr) => new SubmitExpressionCommand(expr)),
+  fc
+    .oneof(
+      expressionArb.map((expression): TranslationOutcome => ({ status: 'translated', expression })),
+      fc.constant<TranslationOutcome>({ status: 'failed' }),
+      fc
+        .constantFrom('process.exit(1)', "alert('xss') + 2", '9 / 2 + 1 = 5.5')
+        .map((expression): TranslationOutcome => ({ status: 'translated', expression })),
+    )
+    .map((outcome) => new TranslationCommand(outcome)),
 ];
 
 describe('calculator model-based state machine tests (fast-check)', () => {
-  it('upholds all invariants across randomized keypad, CE, AC, and Expression Input sequences', () => {
+  it('upholds all invariants across randomized keypad, CE, AC, Expression Input, and translation sequences', () => {
     fc.assert(
       fc.property(fc.commands(allCommands, { maxCommands: 40 }), (cmds) => {
         const setup = () => ({

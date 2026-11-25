@@ -1,4 +1,5 @@
 import {
+  applyTranslation,
   type CalculatorState,
   createInitialState,
   type Digit,
@@ -9,19 +10,33 @@ import {
   pressEquals,
   pressOperator,
   setExpressionInput,
+  setNaturalLanguageInput,
   submitExpression,
+  type TranslationOutcome,
 } from '../core/index.ts';
 
 const TEMPLATE = `
 <section class="calculator" aria-label="Calculator">
   <header class="calculator__header">
     <h1 class="calculator__title">Calculator</h1>
-    <p class="calculator__subtitle">Standard Keypad + Expression Input</p>
+    <p class="calculator__subtitle">Keypad · Expression · Natural Language</p>
   </header>
 
   <output id="display-current" aria-live="polite">0</output>
 
-  <div class="expression-row">
+  <div class="input-row">
+    <input
+      id="natural-language-input"
+      type="text"
+      placeholder="Ask: 15% of 80, plus 5"
+      aria-label="Natural Language Input"
+      autocomplete="off"
+      maxlength="200"
+    />
+    <button type="button" data-action="translate-question" aria-busy="false">Ask</button>
+  </div>
+
+  <div class="input-row">
     <input
       id="expression-input"
       type="text"
@@ -58,7 +73,11 @@ const TEMPLATE = `
 </section>
 `;
 
-export function mountCalculator(root: HTMLElement): void {
+export interface CalculatorDependencies {
+  translate: (question: string) => Promise<TranslationOutcome>;
+}
+
+export function mountCalculator(root: HTMLElement, deps: CalculatorDependencies): void {
   root.innerHTML = TEMPLATE;
 
   const displayEl = root.querySelector<HTMLElement>('#display-current');
@@ -66,13 +85,25 @@ export function mountCalculator(root: HTMLElement): void {
   const submitExpressionBtn = root.querySelector<HTMLButtonElement>(
     '[data-action="submit-expression"]',
   );
+  const naturalLanguageInputEl = root.querySelector<HTMLInputElement>('#natural-language-input');
+  const translateQuestionBtn = root.querySelector<HTMLButtonElement>(
+    '[data-action="translate-question"]',
+  );
   const operatorButtons = Array.from(root.querySelectorAll<HTMLButtonElement>('[data-op]'));
 
-  if (!displayEl || !expressionInputEl || !submitExpressionBtn) {
+  if (
+    !displayEl ||
+    !expressionInputEl ||
+    !submitExpressionBtn ||
+    !naturalLanguageInputEl ||
+    !translateQuestionBtn
+  ) {
     throw new Error('Calculator template is missing required canonical selectors');
   }
 
   let state: CalculatorState = createInitialState();
+  let translationsStarted = 0;
+  let pendingTranslation: number | null = null;
 
   function render(): void {
     displayEl!.textContent = state.display;
@@ -82,8 +113,16 @@ export function mountCalculator(root: HTMLElement): void {
       expressionInputEl!.value = state.expressionInput;
     }
 
+    if (naturalLanguageInputEl!.value !== state.naturalLanguageInput) {
+      naturalLanguageInputEl!.value = state.naturalLanguageInput;
+    }
+
+    const busy = pendingTranslation !== null;
     expressionInputEl!.disabled = state.errorState;
     submitExpressionBtn!.disabled = state.errorState;
+    naturalLanguageInputEl!.disabled = state.errorState;
+    translateQuestionBtn!.disabled = state.errorState || busy;
+    translateQuestionBtn!.setAttribute('aria-busy', String(busy));
     for (const btn of operatorButtons) {
       btn.disabled = state.errorState;
     }
@@ -92,6 +131,27 @@ export function mountCalculator(root: HTMLElement): void {
   function handleSubmitExpression(): void {
     state = setExpressionInput(state, expressionInputEl!.value);
     state = submitExpression(state);
+    render();
+  }
+
+  async function handleTranslateQuestion(): Promise<void> {
+    if (pendingTranslation !== null || state.errorState) {
+      return;
+    }
+
+    state = setNaturalLanguageInput(state, naturalLanguageInputEl!.value);
+    translationsStarted += 1;
+    const requestId = translationsStarted;
+    pendingTranslation = requestId;
+    render();
+
+    const outcome = await deps.translate(state.naturalLanguageInput);
+    if (pendingTranslation !== requestId) {
+      return;
+    }
+
+    pendingTranslation = null;
+    state = applyTranslation(state, outcome);
     render();
   }
 
@@ -126,6 +186,7 @@ export function mountCalculator(root: HTMLElement): void {
   });
 
   root.querySelector<HTMLButtonElement>('[data-action="ac"]')?.addEventListener('click', () => {
+    pendingTranslation = null;
     state = pressAllClear();
     render();
   });
@@ -142,6 +203,21 @@ export function mountCalculator(root: HTMLElement): void {
   });
 
   submitExpressionBtn.addEventListener('click', handleSubmitExpression);
+
+  naturalLanguageInputEl.addEventListener('input', () => {
+    state = setNaturalLanguageInput(state, naturalLanguageInputEl.value);
+  });
+
+  naturalLanguageInputEl.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      void handleTranslateQuestion();
+    }
+  });
+
+  translateQuestionBtn.addEventListener('click', () => {
+    void handleTranslateQuestion();
+  });
 
   render();
 }

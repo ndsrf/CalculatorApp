@@ -11,6 +11,9 @@
 /docs/adr/ @engineering-leads
 /prompts/ @engineering-leads
 
+# AI trust boundary (validation, repair loop, budgets, model access)
+/src/ai/ @engineering-leads
+
 # Verification harness, evals & automation
 /tools/calc-verify/ @engineering-leads
 /evals/ @engineering-leads

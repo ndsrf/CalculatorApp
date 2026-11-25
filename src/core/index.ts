@@ -1,11 +1,14 @@
 export {
+  applyTranslation,
   CALCULATOR_STATE_TRANSITIONS,
+  checkExpressionSyntax,
   type CalculatorPhase,
   type CalculatorState,
   type CalculatorTransition,
   createInitialState,
   type Digit,
   DIVISION_BY_ZERO_MESSAGE,
+  type ExpressionCheck,
   formatNumber,
   getCalculatorPhase,
   INVALID_EXPRESSION_MESSAGE,
@@ -16,5 +19,8 @@ export {
   pressEquals,
   pressOperator,
   setExpressionInput,
+  setNaturalLanguageInput,
   submitExpression,
+  TRANSLATION_FAILED_MESSAGE,
+  type TranslationOutcome,
 } from './calculator.ts';

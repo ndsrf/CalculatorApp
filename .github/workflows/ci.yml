@@ -53,7 +53,7 @@ jobs:
       - name: Typecheck and build app
         run: npm run build
 
-      - name: Run unit tests (core logic, guardrails, pre-tool hook)
+      - name: Run unit tests (core logic, Expression Translator, guardrails, pre-tool hook)
         run: npm run test:unit
 
       - name: Run model-based state machine tests (fast-check)
@@ -65,17 +65,13 @@ jobs:
       - name: Run Playwright + fast-check UI fuzzing tests
         run: npm run test:fuzz
 
-      # Offline stub by default. To run against real models, set repository *variables*
-      # EVAL_PROVIDER_FRONTIER / EVAL_PROVIDER_LIGHTWEIGHT (and optionally EVAL_PROVIDER_JUDGE)
-      # plus the matching API-key *secret* for your provider. See .env.example.
-      - name: Run Promptfoo evals (deterministic, safety, cost/latency; llm-rubric when live)
+      # Offline stub by default. To evaluate a real model, set repository *variables* AI_BASE_URL and
+      # AI_MODEL_LIGHTWEIGHT plus the *secret* AI_API_KEY. See .env.example.
+      - name: Run Promptfoo evals on the real Expression Translator pipeline
         env:
-          EVAL_PROVIDER_FRONTIER: ${{ vars.EVAL_PROVIDER_FRONTIER }}
-          EVAL_PROVIDER_LIGHTWEIGHT: ${{ vars.EVAL_PROVIDER_LIGHTWEIGHT }}
-          EVAL_PROVIDER_JUDGE: ${{ vars.EVAL_PROVIDER_JUDGE }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          AI_BASE_URL: ${{ vars.AI_BASE_URL }}
+          AI_MODEL_LIGHTWEIGHT: ${{ vars.AI_MODEL_LIGHTWEIGHT }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
         run: npm run eval
 
       - name: Upload verification evidence on failure

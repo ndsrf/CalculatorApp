@@ -28,6 +28,7 @@ export async function startViteServer(port: number, timeoutMs = 15000): Promise<
   const proc = spawn('npx', ['vite', '--port', String(port), '--strictPort'], {
     cwd: REPO_ROOT,
     stdio: 'ignore',
+    env: { ...process.env, AI_FORCE_STUB: '1' },
   });
 
   try {

@@ -84,18 +84,24 @@ body {
   font-weight: 600;
 }
 
-.expression-row {
+.input-row {
   display: flex;
   gap: 8px;
 }
 
-#expression-input {
+#expression-input,
+#natural-language-input {
   flex: 1;
+  min-width: 0;
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 0.95rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+#natural-language-input {
+  font-family: inherit;
 }
 
 .keypad {
@@ -126,15 +132,18 @@ button:disabled {
 }
 
 button[data-action='equals'],
-button[data-action='submit-expression'] {
+button[data-action='submit-expression'],
+button[data-action='translate-question'] {
   background: var(--accent);
   color: var(--accent-text);
   border-color: var(--accent);
 }
 
 button[data-action='equals']:hover:not(:disabled),
-button[data-action='submit-expression']:hover:not(:disabled) {
-  filter: brightness(0.95);
+button[data-action='submit-expression']:hover:not(:disabled),
+button[data-action='translate-question']:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(0.92);
 }
 
 button[data-action='ac'] {

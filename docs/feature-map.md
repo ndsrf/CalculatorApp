@@ -47,9 +47,24 @@ This document is the single source of truth mapping user-facing features to:
 
 ---
 
+## `natural-language-input` — Natural Language Input
+
+**Spec:** [`openspec/specs/natural-language-input/spec.md`](../openspec/specs/natural-language-input/spec.md)  
+**Primary Persona:** `@persona:casual-user`  
+**Decision Record:** [`docs/adr/002-ai-translates-parser-decides.md`](adr/002-ai-translates-parser-decides.md)
+
+| Feature Name           | CLI Key / Action         | DOM Selector                         |
+| ---------------------- | ------------------------ | ------------------------------------ |
+| Natural Language Input | `natural-language-input` | `#natural-language-input`            |
+| Translate Question     | `translate-question`     | `[data-action="translate-question"]` |
+
+**Translate Question** sends the question to the **Expression Translator** (server-side, `POST /api/translate`), writes the translated expression into the **Expression Input**, and evaluates it with the safe parser. While a request is in flight, `[data-action="translate-question"]` carries `aria-busy="true"`.
+
+---
+
 ## `error-handling` — Error Handling
 
 **Spec:** [`openspec/specs/error-handling/spec.md`](../openspec/specs/error-handling/spec.md)  
 **Primary Personas:** `@persona:casual-user`, `@persona:power-user`
 
-Error states render in the **Primary Readout** (`#display-current`), disable operator keys (`[data-op="add"]`, `[data-op="subtract"]`, `[data-op="multiply"]`, `[data-op="divide"]`), **Expression Input** (`#expression-input`), and **Submit Expression** (`[data-action="submit-expression"]`), ignore all other keypad inputs, and recover exclusively when **All Clear (AC)** (`[data-action="ac"]`) is activated.
+Error states render in the **Primary Readout** (`#display-current`), disable operator keys (`[data-op="add"]`, `[data-op="subtract"]`, `[data-op="multiply"]`, `[data-op="divide"]`), **Expression Input** (`#expression-input`), **Submit Expression** (`[data-action="submit-expression"]`), **Natural Language Input** (`#natural-language-input`), and **Translate Question** (`[data-action="translate-question"]`), ignore all other keypad inputs, and recover exclusively when **All Clear (AC)** (`[data-action="ac"]`) is activated.

@@ -1,29 +1,28 @@
-import type { Span } from '@opentelemetry/api';
-
 export const OTEL_ATTRS = {
   GEN_AI_SYSTEM: 'gen_ai.system',
   GEN_AI_REQUEST_MODEL: 'gen_ai.request.model',
   GEN_AI_USAGE_INPUT_TOKENS: 'gen_ai.usage.input_tokens',
   GEN_AI_USAGE_OUTPUT_TOKENS: 'gen_ai.usage.output_tokens',
+  PROMPT_ID: 'prompt.id',
+  PROMPT_VERSION: 'prompt.version',
   PROMPT_SHA: 'prompt.sha',
-  APP_USER_REQUEST: 'app.user_request',
-  APP_AGENT_OUTPUT: 'app.agent_output',
-  TOOL_ARGS: 'tool.args',
+  APP_QUESTION: 'app.question',
+  APP_EXPRESSION: 'app.expression',
   OUTCOME_STATUS: 'outcome.status',
-  OUTCOME_LEAKED_SELECTOR: 'outcome.leaked_selector',
+  OUTCOME_TRANSLATION_STATUS: 'outcome.translation_status',
   OUTCOME_RETRIED: 'outcome.retried',
-  OUTCOME_TOOL_CALLS_COUNT: 'outcome.tool_calls_count',
+  OUTCOME_MODEL_CALLS_COUNT: 'outcome.model_calls_count',
   OUTCOME_CIRCUIT_BREAKER_TRIPPED: 'outcome.circuit_breaker_tripped',
   OUTCOME_CIRCUIT_BREAKER_REASON: 'outcome.circuit_breaker_reason',
 } as const;
 
 export interface LoopBudgetConfig {
-  maxToolCalls?: number;
+  maxModelCalls?: number;
   maxTokens?: number;
 }
 
 export interface LoopStepUsage {
-  toolCalls?: number;
+  modelCalls?: number;
   inputTokens?: number;
   outputTokens?: number;
 }
@@ -39,21 +38,21 @@ export class CircuitBreakerError extends Error {
 }
 
 export class LoopBudget {
-  readonly maxToolCalls: number;
+  readonly maxModelCalls: number;
   readonly maxTokens: number;
-  private toolCalls = 0;
+  private modelCalls = 0;
   private inputTokens = 0;
   private outputTokens = 0;
   private tripped = false;
   private tripReason: string | undefined;
 
   constructor(config: LoopBudgetConfig = {}) {
-    this.maxToolCalls = config.maxToolCalls ?? 5;
-    this.maxTokens = config.maxTokens ?? 4000;
+    this.maxModelCalls = config.maxModelCalls ?? 3;
+    this.maxTokens = config.maxTokens ?? 1500;
   }
 
-  get toolCallsCount(): number {
-    return this.toolCalls;
+  get modelCallsCount(): number {
+    return this.modelCalls;
   }
 
   get totalInputTokens(): number {
@@ -76,44 +75,23 @@ export class LoopBudget {
     return this.tripReason;
   }
 
-  applyToSpan(span: Span): void {
-    span.setAttributes({
-      [OTEL_ATTRS.GEN_AI_USAGE_INPUT_TOKENS]: this.inputTokens,
-      [OTEL_ATTRS.GEN_AI_USAGE_OUTPUT_TOKENS]: this.outputTokens,
-      [OTEL_ATTRS.OUTCOME_TOOL_CALLS_COUNT]: this.toolCalls,
-      [OTEL_ATTRS.OUTCOME_CIRCUIT_BREAKER_TRIPPED]: this.tripped,
-      ...(this.tripReason ? { [OTEL_ATTRS.OUTCOME_CIRCUIT_BREAKER_REASON]: this.tripReason } : {}),
-    });
-  }
-
-  recordStep(usage: LoopStepUsage, span?: Span): void {
-    this.toolCalls += usage.toolCalls ?? 0;
+  recordStep(usage: LoopStepUsage): void {
+    this.modelCalls += usage.modelCalls ?? 0;
     this.inputTokens += usage.inputTokens ?? 0;
     this.outputTokens += usage.outputTokens ?? 0;
 
-    if (this.toolCalls > this.maxToolCalls) {
-      this.trip(
-        `tool calls (${this.toolCalls}) exceeded maxToolCalls (${this.maxToolCalls})`,
-        span,
-      );
+    if (this.modelCalls > this.maxModelCalls) {
+      this.trip(`model calls (${this.modelCalls}) exceeded maxModelCalls (${this.maxModelCalls})`);
     }
 
     if (this.totalTokens > this.maxTokens) {
-      this.trip(`token usage (${this.totalTokens}) exceeded maxTokens (${this.maxTokens})`, span);
-    }
-
-    if (span) {
-      this.applyToSpan(span);
+      this.trip(`token usage (${this.totalTokens}) exceeded maxTokens (${this.maxTokens})`);
     }
   }
 
-  private trip(reason: string, span?: Span): never {
+  private trip(reason: string): never {
     this.tripped = true;
     this.tripReason = reason;
-    if (span) {
-      this.applyToSpan(span);
-      span.setAttribute(OTEL_ATTRS.OUTCOME_STATUS, 'error');
-    }
     throw new CircuitBreakerError(reason);
   }
 }

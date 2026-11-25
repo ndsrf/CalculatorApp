@@ -1,68 +1,20 @@
-description: 'Calculator Agent evaluation suite (tier-based model routing + deterministic/safety/cost/latency checks + llm-rubric)'
+description: 'Expression Translator evals (real pipeline: prompt + model + repair loop + safe parser)'
 
+# The question is the whole user message; the system prompt lives in prompts/expression-translator.md
+# and is loaded by the app code itself, so evals and production can never drift apart.
 prompts:
-  - id: calc-tester
-    label: 'calc-tester-agent'
-    raw: file://../prompts/calc-tester-agent.md
-  - id: doc-generator
-    label: 'doc-generator-agent'
-    raw: file://../prompts/doc-generator-agent.md
+  - '{{question}}'
 
-# Providers are intentionally NOT listed here. `npm run eval` (scripts/run-eval.ts) derives one
-# provider per prompt from that prompt's `model_routing.tier` frontmatter and resolves the tier to a
-# concrete model from EVAL_PROVIDER_<TIER> (any Promptfoo provider id: OpenAI, Anthropic, Gemini,
-# Bedrock, Azure, Ollama, ...). With no provider configured it uses an offline deterministic stub.
+providers:
+  - id: file://providers/expression-translator.mjs
+    label: expression-translator
 
 defaultTest:
   assert:
-    - type: cost
-      threshold: 0.01
-    - type: latency
-      threshold: 5000
-    - type: not-contains
-      value: '#display-current'
-    - type: not-contains
-      value: 'data-op'
-    - type: not-contains
-      value: 'data-key'
-    - type: not-contains
-      value: '#expression-input'
-    - type: not-contains
-      value: 'data-action'
-    - type: not-contains
-      value: 'ui_state'
-    - type: not-contains
-      value: 'console_errors'
-    - type: not-contains
-      value: 'error_state'
+    - type: is-json
     - type: javascript
-      value: |
-        if (context.test?.metadata?.route === 'doc-generator') {
-          const banned = ['textbox', 'search bar', 'input box', 'screen', 'lcd', 'reset button', 'backspace', 'numpad'];
-          const found = banned.filter((term) => new RegExp(`\\b${term}\\b`, 'i').test(output));
-          if (found.length > 0) {
-            return { pass: false, score: 0, reason: `Banned glossary synonyms found: ${found.join(', ')}` };
-          }
-          return { pass: true, score: 1, reason: 'Canonical glossary terms used without banned synonyms' };
-        }
-        const match = output.match(/Tool Call:\s*calc-verify\s+(press|type-expression)\s+(.+)/);
-        if (!match) return { pass: false, score: 0, reason: 'Missing valid calc-verify Tool Call line' };
-        const [, subcommand, rest] = match;
-        if (!rest.includes('--snapshot')) {
-          return { pass: false, score: 0, reason: 'calc-verify call must include --snapshot' };
-        }
-        if (subcommand === 'press') {
-          const allowed = new Set(['0','1','2','3','4','5','6','7','8','9','add','subtract','multiply','divide','equals','ce','ac']);
-          const tokens = rest.replace(/--snapshot/g, '').trim().split(/\s+/).filter(Boolean);
-          const invalid = tokens.filter((t) => !allowed.has(t));
-          if (tokens.length === 0 || invalid.length > 0) {
-            return { pass: false, score: 0, reason: `Invalid press keys: ${invalid.join(', ')}` };
-          }
-          return { pass: true, score: 1, reason: 'Valid press arguments' };
-        }
-        if (!rest.includes('--submit')) {
-          return { pass: false, score: 0, reason: 'type-expression call must include --submit' };
-        }
-        return { pass: true, score: 1, reason: 'Valid type-expression arguments' };
+      value: file://assertions/check-translation.mjs
+    - type: latency
+      threshold: 10000
 
 tests: file://golden-dataset.yaml

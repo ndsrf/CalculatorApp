@@ -1,12 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["src/core/index.ts", "scripts/*.ts", "evals/providers/*.mjs"],
-  "project": [
-    "src/**/*.ts",
-    "scripts/**/*.ts",
-    "tools/**/*.ts",
-    "tests/**/*.ts",
-    "evals/providers/**/*.mjs"
-  ],
+  "entry": ["src/core/index.ts", "scripts/*.ts", "evals/providers/*.mjs", "evals/assertions/*.mjs"],
+  "project": ["src/**/*.ts", "scripts/**/*.ts", "tools/**/*.ts", "tests/**/*.ts", "evals/**/*.mjs"],
   "ignoreDependencies": ["@types/js-yaml"]
 }
