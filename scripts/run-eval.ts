@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { load as parseYaml } from 'js-yaml';
 import { loadDotEnvIfPresent } from './env.ts';
 
@@ -10,15 +10,15 @@ interface PromptfooAssertion {
 }
 
 interface PromptfooPromptConfig {
-  id?: string;
-  label?: string;
+  id: string;
+  label: string;
   raw: string;
 }
 
 interface PromptfooProviderConfig {
   id: string;
-  label?: string;
-  prompts?: string[];
+  label: string;
+  prompts: string[];
   config?: Record<string, unknown>;
 }
 
@@ -32,8 +32,8 @@ interface PromptfooTestCase {
 
 interface PromptfooConfig {
   description?: string;
-  prompts?: Array<string | PromptfooPromptConfig>;
-  providers?: Array<string | PromptfooProviderConfig>;
+  prompts: PromptfooPromptConfig[];
+  providers?: PromptfooProviderConfig[];
   defaultTest?: {
     options?: Record<string, unknown>;
     assert?: PromptfooAssertion[];
@@ -41,147 +41,163 @@ interface PromptfooConfig {
   tests?: string | PromptfooTestCase[];
 }
 
-interface ModelRoute {
-  name: string;
-  providerFilter: string;
-  metadataFilter: string;
+interface PromptFrontmatter {
+  id?: string;
+  version?: string;
+  model_routing?: { tier?: string };
+}
+
+interface RoutedPrompt {
+  route: string;
+  label: string;
+  tier: string;
+  version: string;
+  body: string;
 }
 
 const REPO_ROOT = resolve(import.meta.dirname, '..');
 const EVALS_DIR = join(REPO_ROOT, 'evals');
-const FULL_CONFIG_PATH = join(EVALS_DIR, 'promptfooconfig.yaml');
+const BASE_CONFIG_PATH = join(EVALS_DIR, 'promptfooconfig.yaml');
 const GOLDEN_DATASET_PATH = join(EVALS_DIR, 'golden-dataset.yaml');
 const GENERATED_DIR = join(REPO_ROOT, '.promptfoo');
-const GENERATED_CONFIG_PATH = join(GENERATED_DIR, 'deterministic.config.json');
-const GENERATED_LIVE_CONFIG_PATH = join(GENERATED_DIR, 'live.config.json');
-const STUB_PROVIDER_PATH = 'file://../evals/providers/deterministic-stub.mjs';
+const GENERATED_CONFIG_PATH = join(GENERATED_DIR, 'eval.config.json');
+const STUB_PROVIDER_ID = 'file://../evals/providers/deterministic-stub.mjs';
+const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
+const DEFAULT_ROUTE = 'calc-tester';
 
-const MODEL_ROUTES: readonly ModelRoute[] = [
-  {
-    name: 'frontier-verifier (calc-tester-agent)',
-    providerFilter: '^frontier-verifier$',
-    metadataFilter: 'route=calc-tester',
-  },
-  {
-    name: 'lightweight-doc-compiler (doc-generator-agent)',
-    providerFilter: '^lightweight-doc-compiler$',
-    metadataFilter: 'route=doc-generator',
-  },
-];
+const TIER_DEFAULTS: Record<string, { temperature: number; max_tokens: number }> = {
+  frontier: { temperature: 0, max_tokens: 400 },
+  lightweight: { temperature: 0, max_tokens: 600 },
+};
 
-function hasValidOpenAiKey(): boolean {
-  const key = process.env.OPENAI_API_KEY?.trim();
-  return Boolean(key && key !== 'sk-your-openai-api-key-here');
+function envProviderFor(tier: string): string | undefined {
+  const value = process.env[`EVAL_PROVIDER_${tier.toUpperCase()}`]?.trim();
+  return value ? value : undefined;
 }
 
-function normalizeRouteMetadata(tests: PromptfooTestCase[]): PromptfooTestCase[] {
-  // Harvested trace regressions omit metadata.route; default them to calc-tester so --filter-metadata includes them.
+function loadRoutedPrompt(prompt: PromptfooPromptConfig): RoutedPrompt {
+  const promptPath = resolve(EVALS_DIR, prompt.raw.replace(/^file:\/\//, ''));
+  const content = readFileSync(promptPath, 'utf-8');
+  const match = content.match(FRONTMATTER_PATTERN);
+  if (!match) {
+    throw new Error(`${promptPath} is missing YAML frontmatter with model_routing.tier`);
+  }
+  const frontmatter = (parseYaml(match[1]) ?? {}) as PromptFrontmatter;
+  const tier = frontmatter.model_routing?.tier;
+  if (!tier) {
+    throw new Error(`${promptPath} frontmatter must declare model_routing.tier`);
+  }
+  return {
+    route: prompt.id,
+    label: prompt.label,
+    tier,
+    version: frontmatter.version ?? 'unversioned',
+    body: content.slice(match[0].length).trimStart(),
+  };
+}
+
+function withDefaultRoute(tests: PromptfooTestCase[]): PromptfooTestCase[] {
+  // Harvested trace regressions omit metadata.route; default them so --filter-metadata includes them.
   return tests.map((testCase) => ({
     ...testCase,
-    metadata: {
-      route: 'calc-tester',
-      ...testCase.metadata,
-    },
+    metadata: { route: DEFAULT_ROUTE, ...testCase.metadata },
   }));
 }
 
-function runPromptfooRoute(configPath: string, route: ModelRoute): number {
-  console.log(`\n==> Running route: ${route.name}`);
+function withoutRubrics(assertions: PromptfooAssertion[] = []): PromptfooAssertion[] {
+  return assertions.filter((assertion) => assertion.type !== 'llm-rubric');
+}
+
+function runRoute(prompt: RoutedPrompt, providerLabel: string): number {
+  console.log(
+    `\n==> Route '${prompt.route}' (${prompt.label}@${prompt.version}) on tier '${prompt.tier}'`,
+  );
   const result = spawnSync(
     'npx',
     [
       'promptfoo',
       'eval',
       '-c',
-      configPath,
+      GENERATED_CONFIG_PATH,
       '--filter-providers',
-      route.providerFilter,
+      `^${providerLabel}$`,
       '--filter-metadata',
-      route.metadataFilter,
+      `route=${prompt.route}`,
       '--no-cache',
       '--no-write',
     ],
-    {
-      cwd: REPO_ROOT,
-      stdio: 'inherit',
-      env: process.env,
-    },
+    { cwd: REPO_ROOT, stdio: 'inherit', env: process.env },
   );
   return result.status ?? 1;
-}
-
-function runAllRoutes(configPath: string): number {
-  for (const route of MODEL_ROUTES) {
-    const status = runPromptfooRoute(configPath, route);
-    if (status !== 0) {
-      return status;
-    }
-  }
-  return 0;
 }
 
 function main(): void {
   loadDotEnvIfPresent();
 
-  const baseConfig = parseYaml(readFileSync(FULL_CONFIG_PATH, 'utf-8')) as PromptfooConfig;
-  const rawTests = parseYaml(readFileSync(GOLDEN_DATASET_PATH, 'utf-8')) as PromptfooTestCase[];
-  const normalizedTests = normalizeRouteMetadata(rawTests);
+  const baseConfig = parseYaml(readFileSync(BASE_CONFIG_PATH, 'utf-8')) as PromptfooConfig;
+  const tests = withDefaultRoute(
+    parseYaml(readFileSync(GOLDEN_DATASET_PATH, 'utf-8')) as PromptfooTestCase[],
+  );
+  const prompts = baseConfig.prompts.map(loadRoutedPrompt);
 
   const forceDeterministic = process.argv.includes('--deterministic');
-  if (!forceDeterministic && hasValidOpenAiKey()) {
-    console.log('Running full Promptfoo eval suite (deterministic assertions + llm-rubric)...');
-    const hasUnroutedTest = rawTests.some((testCase) => !testCase.metadata?.route);
-    if (!hasUnroutedTest) {
-      process.exit(runAllRoutes(FULL_CONFIG_PATH));
-    }
+  const tiers = [...new Set(prompts.map((p) => p.tier))];
+  const unresolvedTiers = tiers.filter((tier) => !envProviderFor(tier));
+  const live = !forceDeterministic && unresolvedTiers.length === 0;
 
-    mkdirSync(GENERATED_DIR, { recursive: true });
-    writeFileSync(
-      GENERATED_LIVE_CONFIG_PATH,
-      JSON.stringify({ ...baseConfig, tests: normalizedTests }, null, 2),
-      'utf-8',
+  if (!forceDeterministic && !live && unresolvedTiers.length < tiers.length) {
+    console.error(
+      `Live eval needs a provider for every tier. Missing: ${unresolvedTiers
+        .map((tier) => `EVAL_PROVIDER_${tier.toUpperCase()}`)
+        .join(', ')} (see .env.example).`,
     );
-    process.exit(runAllRoutes(GENERATED_LIVE_CONFIG_PATH));
+    process.exit(1);
   }
 
-  console.log(
-    'OPENAI_API_KEY not set (or --deterministic specified): running deterministic Promptfoo assertions offline (skipping llm-rubric; see .env.example to enable llm-rubric).',
-  );
+  const judge = process.env.EVAL_PROVIDER_JUDGE?.trim() || envProviderFor('frontier');
+  const providerLabelFor = (prompt: RoutedPrompt) => `${prompt.route}@${prompt.tier}`;
 
-  const deterministicProviders: PromptfooProviderConfig[] = (baseConfig.providers ?? []).map(
-    (provider) => {
-      if (typeof provider === 'string') {
-        return { id: STUB_PROVIDER_PATH };
-      }
-      return {
-        id: STUB_PROVIDER_PATH,
-        label: provider.label,
-        prompts: provider.prompts,
-      };
-    },
-  );
-
-  const deterministicTests = normalizedTests.map((testCase) => ({
-    ...testCase,
-    assert: (testCase.assert ?? []).filter((assertion) => assertion.type !== 'llm-rubric'),
+  const providers: PromptfooProviderConfig[] = prompts.map((prompt) => ({
+    id: live ? envProviderFor(prompt.tier)! : STUB_PROVIDER_ID,
+    label: providerLabelFor(prompt),
+    prompts: [prompt.label],
+    ...(live ? { config: TIER_DEFAULTS[prompt.tier] ?? { temperature: 0 } } : {}),
   }));
 
-  const deterministicConfig: PromptfooConfig = {
-    description: `${baseConfig.description ?? 'Calculator Evals'} (deterministic mode)`,
-    prompts: baseConfig.prompts,
-    providers: deterministicProviders,
+  const generated: PromptfooConfig = {
+    description: `${baseConfig.description ?? 'Evals'} (${live ? 'live' : 'deterministic'} mode)`,
+    prompts: prompts.map((prompt) => ({ id: prompt.route, label: prompt.label, raw: prompt.body })),
+    providers,
     defaultTest: {
-      assert: (baseConfig.defaultTest?.assert ?? []).filter(
-        (assertion) => assertion.type !== 'llm-rubric',
-      ),
+      ...(live && judge ? { options: { provider: judge } } : {}),
+      assert: live
+        ? (baseConfig.defaultTest?.assert ?? [])
+        : withoutRubrics(baseConfig.defaultTest?.assert),
     },
-    tests: deterministicTests,
+    tests: live
+      ? tests
+      : tests.map((testCase) => ({ ...testCase, assert: withoutRubrics(testCase.assert) })),
   };
 
-  mkdirSync(GENERATED_DIR, { recursive: true });
-  writeFileSync(GENERATED_CONFIG_PATH, JSON.stringify(deterministicConfig, null, 2), 'utf-8');
+  if (live) {
+    console.log(
+      `Running LIVE evals: ${providers.map((p) => `${p.label} -> ${p.id}`).join(', ')}; llm-rubric judge -> ${judge}`,
+    );
+  } else {
+    console.log(
+      'Running DETERMINISTIC evals offline against evals/providers/deterministic-stub.mjs (llm-rubric skipped). Set EVAL_PROVIDER_FRONTIER and EVAL_PROVIDER_LIGHTWEIGHT to run against real models (see .env.example).',
+    );
+  }
 
-  process.exit(runAllRoutes(GENERATED_CONFIG_PATH));
+  mkdirSync(dirname(GENERATED_CONFIG_PATH), { recursive: true });
+  writeFileSync(GENERATED_CONFIG_PATH, JSON.stringify(generated, null, 2), 'utf-8');
+
+  for (const prompt of prompts) {
+    const status = runRoute(prompt, providerLabelFor(prompt));
+    if (status !== 0) {
+      process.exit(status);
+    }
+  }
 }
 
 main();

@@ -1,6 +1,5 @@
 dist/
 traces/
-openspec/archive/
 openspec/changes/archive/
 package-lock.json
 skills-lock.json
