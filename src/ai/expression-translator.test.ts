@@ -42,6 +42,10 @@ describe('Expression Translator', () => {
     expect(parseModelReply('```\n7 * 6\n```')).toEqual({ kind: 'expression', expression: '7 * 6' });
     expect(parseModelReply('`7 * 6`')).toEqual({ kind: 'expression', expression: '7 * 6' });
     expect(parseModelReply(` ${CANNOT_TRANSLATE}\n`)).toEqual({ kind: 'refusal' });
+    expect(parseModelReply('cannot_translate.')).toEqual({ kind: 'refusal' });
+    expect(parseModelReply(`${CANNOT_TRANSLATE} because it is about weather`)).toEqual({
+      kind: 'refusal',
+    });
   });
 
   it('treats an explicit CANNOT_TRANSLATE as a refusal', async () => {
@@ -69,6 +73,17 @@ describe('Expression Translator', () => {
     expect(result).toMatchObject({ status: 'translated', expression: '9 / 2 + 1', modelCalls: 2 });
     const retryMessages = client.calls[1];
     expect(retryMessages.at(-1)?.content).toContain('parser rejected');
+  });
+
+  it('keeps a valid reply even when it pushes cumulative tokens past the budget', async () => {
+    const client = scriptedClient(['9 / 2 + 1 = 5.5', '9 / 2 + 1']);
+    const result = await translateQuestion('half of 9 plus 1', client, {
+      ...OPTIONS,
+      limits: { maxModelCalls: 3, maxTokens: 20 },
+    });
+
+    expect(result).toMatchObject({ status: 'translated', expression: '9 / 2 + 1', modelCalls: 2 });
+    expect(result.inputTokens + result.outputTokens).toBeGreaterThan(20);
   });
 
   it('never returns untrusted output: persistent invalid replies trip the LoopBudget', async () => {

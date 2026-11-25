@@ -38,6 +38,11 @@ export function createTranslateMiddleware(service: Pick<TranslateService, 'trans
       return;
     }
 
+    if (!req.headers['content-type']?.startsWith('application/json')) {
+      sendJson(res, 415, { status: 'unavailable' });
+      return;
+    }
+
     try {
       const body = await readJsonBody(req);
       const question = (body as { question?: unknown } | null)?.question;

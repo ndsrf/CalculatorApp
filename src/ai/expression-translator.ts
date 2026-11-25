@@ -8,6 +8,7 @@ import type { ChatMessage, ModelClient } from './model-clients.ts';
 
 export const CANNOT_TRANSLATE = 'CANNOT_TRANSLATE';
 export const MAX_QUESTION_LENGTH = 200;
+const REFUSAL_PATTERN = new RegExp(`^${CANNOT_TRANSLATE}\\b`, 'i');
 
 type TranslationStatus = 'translated' | 'refused' | 'budget_exceeded' | 'unavailable';
 
@@ -31,7 +32,7 @@ export function parseModelReply(text: string): ModelReply {
     .replace(/^`+|`+$/g, '')
     .trim();
 
-  return cleaned === CANNOT_TRANSLATE
+  return REFUSAL_PATTERN.test(cleaned)
     ? { kind: 'refusal' }
     : { kind: 'expression', expression: cleaned };
 }
@@ -64,7 +65,6 @@ export async function translateQuestion(
       usage.modelCalls += 1;
       usage.inputTokens += reply.inputTokens;
       usage.outputTokens += reply.outputTokens;
-      budget.recordStep({ inputTokens: reply.inputTokens, outputTokens: reply.outputTokens });
 
       const parsed = parseModelReply(reply.text);
       if (parsed.kind === 'refusal') {
@@ -76,6 +76,7 @@ export async function translateQuestion(
         return { status: 'translated', expression: parsed.expression, ...usage };
       }
 
+      budget.recordStep({ inputTokens: reply.inputTokens, outputTokens: reply.outputTokens });
       messages.push(
         { role: 'assistant', content: reply.text },
         { role: 'user', content: repairInstruction(check.reason) },

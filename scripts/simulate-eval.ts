@@ -76,8 +76,8 @@ function runLiveEval(port: number): Promise<{ code: number; stderr: string }> {
     AI_BASE_URL: `http://127.0.0.1:${port}/v1`,
     AI_MODEL_LIGHTWEIGHT: 'simulated-flawed-model',
     AI_API_KEY: 'not-a-real-key',
+    AI_FORCE_STUB: '0',
   };
-  delete env.AI_FORCE_STUB;
   for (const variable of PROXY_VARIABLES) {
     delete env[variable];
   }
