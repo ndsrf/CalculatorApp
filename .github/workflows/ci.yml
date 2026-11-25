@@ -6,9 +6,18 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege: CI (and any agent that triggers it) can read the repo but not push, comment or release.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
@@ -44,7 +53,7 @@ jobs:
       - name: Typecheck and build app
         run: npm run build
 
-      - name: Run unit tests
+      - name: Run unit tests (core logic, guardrails, pre-tool hook)
         run: npm run test:unit
 
       - name: Run model-based state machine tests (fast-check)
@@ -56,7 +65,26 @@ jobs:
       - name: Run Playwright + fast-check UI fuzzing tests
         run: npm run test:fuzz
 
-      - name: Run Promptfoo evals (deterministic + cost/latency + llm-rubric)
+      # Offline stub by default. To run against real models, set repository *variables*
+      # EVAL_PROVIDER_FRONTIER / EVAL_PROVIDER_LIGHTWEIGHT (and optionally EVAL_PROVIDER_JUDGE)
+      # plus the matching API-key *secret* for your provider. See .env.example.
+      - name: Run Promptfoo evals (deterministic, safety, cost/latency; llm-rubric when live)
         env:
+          EVAL_PROVIDER_FRONTIER: ${{ vars.EVAL_PROVIDER_FRONTIER }}
+          EVAL_PROVIDER_LIGHTWEIGHT: ${{ vars.EVAL_PROVIDER_LIGHTWEIGHT }}
+          EVAL_PROVIDER_JUDGE: ${{ vars.EVAL_PROVIDER_JUDGE }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         run: npm run eval
+
+      - name: Upload verification evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-evidence
+          path: |
+            traces/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7

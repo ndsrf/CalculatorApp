@@ -1,4 +1,4 @@
-description: 'Calculator Agent evaluation suite (right-sized model routing + deterministic/safety/cost/latency checks + llm-rubric)'
+description: 'Calculator Agent evaluation suite (tier-based model routing + deterministic/safety/cost/latency checks + llm-rubric)'
 
 prompts:
   - id: calc-tester
@@ -8,25 +8,12 @@ prompts:
     label: 'doc-generator-agent'
     raw: file://../prompts/doc-generator-agent.md
 
-providers:
-  - id: openai:gpt-4o
-    label: 'frontier-verifier'
-    prompts:
-      - 'calc-tester-agent'
-    config:
-      temperature: 0
-      max_tokens: 400
-  - id: openai:gpt-4o-mini
-    label: 'lightweight-doc-compiler'
-    prompts:
-      - 'doc-generator-agent'
-    config:
-      temperature: 0
-      max_tokens: 600
+# Providers are intentionally NOT listed here. `npm run eval` (scripts/run-eval.ts) derives one
+# provider per prompt from that prompt's `model_routing.tier` frontmatter and resolves the tier to a
+# concrete model from EVAL_PROVIDER_<TIER> (any Promptfoo provider id: OpenAI, Anthropic, Gemini,
+# Bedrock, Azure, Ollama, ...). With no provider configured it uses an offline deterministic stub.
 
 defaultTest:
-  options:
-    provider: openai:gpt-4o
   assert:
     - type: cost
       threshold: 0.01

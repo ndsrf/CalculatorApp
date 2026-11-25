@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Minimal reference repository demonstrating an AI-native engineering workflow for a Calculator App",
+  "engines": {
+    "node": ">=22"
+  },
+  "description": "Provider-agnostic reference repository for AI-native engineering practices, using a deliberately tiny Calculator App",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -17,13 +20,14 @@
     "harvest:trace": "tsx scripts/harvest-trace.ts",
     "trace:demo": "tsx scripts/run-traced-demo.ts",
     "test": "vitest run",
-    "test:unit": "vitest run src/core/parser.test.ts src/core/calculator.test.ts src/observability/guardrails.test.ts",
+    "test:unit": "vitest run src/core/parser.test.ts src/core/calculator.test.ts src/observability/guardrails.test.ts tests/pre-tool-guard.test.ts",
     "test:model": "vitest run src/core/calculator.model.test.ts",
     "test:cli": "vitest run tools/calc-verify/tests/",
     "test:fuzz": "vitest run tests/ui-fuzz.test.ts",
     "verify:cli": "tsx tools/calc-verify/index.ts",
     "eval": "tsx scripts/run-eval.ts",
-    "eval:deterministic": "tsx scripts/run-eval.ts --deterministic"
+    "eval:deterministic": "tsx scripts/run-eval.ts --deterministic",
+    "check": "npm run format:check && npm run lint:docs && npm run lint:arch && npm run lint:deadcode && npm run docs:state-chart && git diff --exit-code docs/state-chart.md && npm run build && npm test && npm run eval:deterministic"
   },
   "devDependencies": {
     "@opentelemetry/api": "^1.10.0",

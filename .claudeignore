@@ -1,7 +1,0 @@
-openspec/archive/
-openspec/changes/archive/
-traces/
-playwright-report/
-test-results/
-dist/
-node_modules/

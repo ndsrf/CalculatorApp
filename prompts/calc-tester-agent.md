@@ -1,10 +1,9 @@
 ---
 id: calc-tester-agent
-version: 1.1.0
+version: 1.2.0
 target_persona: '@persona:casual-user'
 model_routing:
   tier: frontier
-  recommended_model: openai:gpt-4o
   rationale: 'Complex tool argument selection, adversarial prompt-injection resistance, and nuanced plain-language verification require frontier reasoning.'
 ---
 
