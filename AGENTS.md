@@ -9,8 +9,10 @@ Before proposing or implementing any change, you MUST read:
 1. [`docs/feature-map.md`](docs/feature-map.md) — Canonical feature names, spec sections, and DOM selectors.
 2. [`docs/glossary.md`](docs/glossary.md) — Canonical domain terms and explicitly banned synonyms.
 3. [`docs/personas.md`](docs/personas.md) — Supported `@persona:` tags and user mental models.
-4. The relevant living specification under [`openspec/specs/`](openspec/specs/).
-5. Any relevant decision record under [`docs/adr/`](docs/adr/) (e.g. why `eval()` is banned, and why the AI only translates).
+4. [`docs/non-goals.md`](docs/non-goals.md) — Explicit product guardrails to prevent scope creep.
+5. [`docs/security-boundaries.md`](docs/security-boundaries.md) — Untrusted input, secret isolation, and trace hygiene rules.
+6. The relevant living specification under [`openspec/specs/`](openspec/specs/).
+7. Any relevant decision record under [`docs/adr/`](docs/adr/) (e.g. why `eval()` is banned, and why the AI only translates).
 
 ## 2. Commands
 
