@@ -17,6 +17,7 @@
     "lint:arch": "depcruise src --config .dependency-cruiser.cjs && eslint src",
     "lint:deadcode": "knip",
     "docs:state-chart": "tsx scripts/generate-state-chart.ts",
+    "docs:generate": "tsx scripts/generate-docs.ts",
     "harvest:trace": "tsx scripts/harvest-trace.ts",
     "trace:demo": "tsx scripts/run-traced-demo.ts",
     "test": "vitest run",
