@@ -11,7 +11,7 @@ Canonical OpenTelemetry span attributes emitted by `src/observability/tracer.ts`
 | `outcome.circuit_breaker_tripped` | `boolean` | `true` when `LoopBudget` halts execution (`maxModelCalls` or `maxTokens` exceeded).                                 |
 | `outcome.circuit_breaker_reason`  | `string`  | Human-readable limit reason when `outcome.circuit_breaker_tripped` is `true`.                                       |
 
-_Selector leakage (`outcome.leaked_selector`) is not yet emitted by `tracer.ts`; selector compliance is gated in CI by `npm run test:cli`._
+_Selector leakage (`outcome.leaked_selector`) is not yet emitted by `tracer.ts`; selector compliance is gated in CI by `npm run test:cli` and `npm run test:ui`._
 
 ## Model & Prompt Provenance
 

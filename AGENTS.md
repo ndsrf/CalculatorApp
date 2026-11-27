@@ -25,6 +25,7 @@ Before proposing or implementing any change, you MUST read:
 | Architecture boundaries & dead code  | `npm run lint:arch` · `npm run lint:deadcode`                                  |
 | Prompt & vendored skill integrity    | `npm run lint:prompts` · `npm run lint:skills`                                 |
 | Browser verification (needs app)     | `npm run test:cli` · `npm run test:ui` · `npm run test:fuzz`                   |
+| Prove the gates still catch breaches | `npm run test:gates`                                                           |
 | Observe the app as an agent          | `npm run dev`, then `npm run verify:cli -- press 1 add 2 equals --snapshot`    |
 | Observe the AI feature as an agent   | `npm run dev`, then `npm run verify:cli -- ask "15% of 80, plus 5" --snapshot` |
 | Evaluate the AI feature              | `npm run eval` (offline stub unless `AI_*` is set; see `.env.example`)         |
@@ -54,7 +55,7 @@ Before proposing or implementing any change, you MUST read:
 - Do NOT modify `tools/calc-verify/` to make failing checks pass. Edits to `tools/calc-verify/` are blocked by `.agents/hooks/pre-tool-guard.sh` unless a human explicitly authorizes them with `ALLOW_VERIFY_EDIT=1`.
 - Do NOT weaken a gate to get green: no skipping/deleting tests, loosening eval assertions, disabling lint rules, or adding `eslint-disable` without a human asking for it. If a gate seems wrong, stop and explain why.
 - All UI controls MUST remain wired exclusively to the canonical selectors documented in `docs/feature-map.md`.
-- Any selector addition or change requires updating `docs/feature-map.md` and verifying `npm run test:cli` (contract + integration tests).
+- Any selector addition or change requires updating `docs/feature-map.md` and verifying `npm run test:cli` (contract + integration tests) and `npm run test:ui` (selectors in the running app).
 - Never commit secrets. Keys belong in a local, gitignored `.env` (see `.env.example`).
 
 ## 6. AI Feature Rules (Expression Translator)

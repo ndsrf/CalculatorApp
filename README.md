@@ -166,7 +166,7 @@ Each layer exists because the one before it leaves a specific failure mode open.
   3. **Browser fuzzing** (Playwright + `fast-check`): random clicks, malformed expressions, and random questions against the real app and its translation endpoint, asserting zero console/page errors.
   4. **`calc-verify`**, an agent-facing verification CLI (`press`, `type-expression`, `ask`). It speaks only Feature Map names, uses a fresh browser context per run (idempotent), and returns JSON snapshots, PNG screenshots, and Playwright trace ZIPs. A **contract test** fails if the CLI and `docs/feature-map.md` disagree.
 
-  A browser test also checks that text controls carry their Feature Map names, so the UI, specs, and user guide use the same words.
+  Another browser test checks the running app against the Feature Map: every selector matches exactly one element, and text controls carry their canonical names.
 
   `docs/state-chart.md` is generated from `CALCULATOR_STATE_TRANSITIONS` in code, and CI fails if it drifts.
 
@@ -236,6 +236,8 @@ Three concerns belong outside the application source:
 
 A rule you have never seen fail is a rule you are only hoping is enforced. Violate each one and watch the harness catch you. The first column is the [idea](#why-this-repo-exists) being tested. Revert each change afterwards (for example with `git stash` or your editor's undo).
 
+Or let the machine do all of it: `npm run test:gates` applies each row in a temporary [git worktree](https://git-scm.com/docs/git-worktree), leaving your files untouched. It first checks that every command passes unbroken, then requires each violation to fail **for the stated reason**, because a gate that fails by accident proves nothing. CI runs it as a separate job, and `npm run check` fails if this table and [`scripts/gate-violations.ts`](scripts/gate-violations.ts) drift apart.
+
 | Idea | Try this                                                                                                                                                                                              | Then run                                                              | What catches it                                                  |
 | :--: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------- |
 |  1   | Write "the screen shows 0" in `openspec/specs/keypad/spec.md`                                                                                                                                         | `npm run lint:docs`                                                   | Banned glossary synonym (`screen` → **Primary Readout**)         |
@@ -248,7 +250,7 @@ A rule you have never seen fail is a rule you are only hoping is enforced. Viola
 |  4   | Edit the body of `prompts/expression-translator.md` without touching `version`                                                                                                                        | `npm run lint:prompts`                                                | Prompt changed without a version bump or a new golden case       |
 |  2   | Add a line to `.agents/skills/grilling/SKILL.md`                                                                                                                                                      | `npm run lint:skills`                                                 | Vendored skill no longer matches `skills-lock.json`              |
 |  1   | Rename the **Submit Expression** button to "Run" in `src/ui/calculator-ui.ts`                                                                                                                         | `npm run test:ui`                                                     | Control no longer carries its Feature Map name                   |
-|  3   | Change `data-op="add"` to `data-op="plus"` in `src/ui/calculator-ui.ts`                                                                                                                               | `npm run test:cli`                                                    | UI no longer matches the Feature Map contract                    |
+|  3   | Change `data-op="add"` to `data-op="plus"` in `src/ui/calculator-ui.ts`                                                                                                                               | `npm run test:ui`                                                     | A Feature Map selector matches no element in the app             |
 |  5   | Pretend to be an agent editing the verifier                                                                                                                                                           | `.agents/hooks/pre-tool-guard.sh tools/calc-verify/index.ts; echo $?` | Pre-tool hook blocks with exit `2`                               |
 
 ---
@@ -391,6 +393,7 @@ You don't need all eight layers on day one. A pragmatic order, with highest retu
 | Agents can observe what they built       | `calc-verify` drives the browser         | An API client, CLI harness, or preview environment          |
 | Deterministic code judges model output   | Arithmetic parser                        | JSON schema, allow-list, type checker, database constraint  |
 | Generated artifacts can't drift          | State chart regenerated and diffed in CI | API reference, database schema docs, client SDKs            |
+| Gates are proven to fail                 | `test:gates` breaks each rule on purpose | Known-bad fixtures or seeded violations for each CI check   |
 | Evals grade what the user would see      | Exact match on the Primary Readout       | Code-graded outcomes first, LLM-as-judge only if subjective |
 
 ---
@@ -410,6 +413,7 @@ Decide for every check where it runs. Local checks give fast feedback; only serv
 | `lint:docs`                                                   |    ✅     |   ✅   | Banned synonyms, unknown personas, broken 1:1 spec parity                        |
 | `lint:prompts`, `lint:skills`                                 |    ✅     |   ✅   | Unversioned prompt changes, missing golden cases, edited vendored skills         |
 | `npm audit` (not part of `npm run check`)                     | On demand |   ✅   | High or critical dependency advisories                                           |
+| `test:gates` (not part of `npm run check`)                    | On demand |   ✅   | Gates that no longer catch the violation they exist for                          |
 | `lint:arch`, `lint:deadcode`                                  |    ✅     |   ✅   | Boundary violations (incl. browser → AI), `eval`, DOM globals in core, dead code |
 | State-chart drift                                             |    ✅     |   ✅   | `docs/state-chart.md` out of sync with code                                      |
 | `build` and the `test:*` suites                               |    ✅     |   ✅   | Types, logic, invariants, translator loop, Feature Map contract, runtime errors  |
@@ -419,30 +423,31 @@ Decide for every check where it runs. Local checks give fast feedback; only serv
 <details>
 <summary><strong>Full command reference</strong></summary>
 
-| Command                                               | What it runs                                                                                    |
-| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `npm run check`                                       | Every CI gate, in CI order.                                                                     |
-| `npm run dev` / `build`                               | Vite dev server with `/api/translate` (`:5173`) / typecheck + production bundle.                |
-| `npm run format[:check]`                              | Prettier write / check.                                                                         |
-| `npm run lint:docs`                                   | Glossary, persona, and Feature Map ↔ spec parity checks.                                        |
-| `npm run lint:prompts`                                | Prompt version bumps and golden cases, compared with `origin/main`.                             |
-| `npm run lint:skills`                                 | Vendored skills ↔ `skills-lock.json` hashes.                                                    |
-| `npm run lint:arch`                                   | dependency-cruiser + ESLint architecture rules.                                                 |
-| `npm run lint:deadcode`                               | knip unused files/exports/dependencies.                                                         |
-| `npm run docs:state-chart`                            | Regenerate `docs/state-chart.md` from code.                                                     |
-| `npm run docs:generate`                               | Regenerate `docs/USER-GUIDE.md` and `docs/RELEASE-NOTES.md` from specs and git history.         |
-| `npm test`                                            | All Vitest suites.                                                                              |
-| `npm run test:unit`                                   | Parser, state machine, Expression Translator, `LoopBudget`, hook, and prompt/skill lint tests.  |
-| `npm run test:model`                                  | `fast-check` model-based state-machine tests.                                                   |
-| `npm run test:cli`                                    | `calc-verify` Feature Map contract + Playwright integration tests.                              |
-| `npm run test:ui`                                     | Accessible names of text controls match the Feature Map.                                        |
-| `npm run test:fuzz`                                   | Playwright + `fast-check` browser fuzzing.                                                      |
-| `npm run verify:cli -- press/type-expression/ask ...` | Drive the running app by Feature Map names.                                                     |
-| `npm run eval:simulate`                               | Run the real evals against a scripted flawed model over a local HTTP server (no key).           |
-| `npm run eval[:deterministic]`                        | Promptfoo evals on the real pipeline (live if `AI_*` is set; `:deterministic` forces the stub). |
-| `npm run trace:demo [-- "question" ...]`              | Translate questions with tracing on → `traces/runs.jsonl` (or OTLP).                            |
-| `npm run harvest:trace -- --list`                     | List failed or retried translations.                                                            |
-| `npm run harvest:trace -- --trace-id <id>`            | Failing span → regression case in `evals/golden-dataset.yaml`.                                  |
+| Command                                               | What it runs                                                                                              |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `npm run check`                                       | Every CI gate, in CI order.                                                                               |
+| `npm run dev` / `build`                               | Vite dev server with `/api/translate` (`:5173`) / typecheck + production bundle.                          |
+| `npm run format[:check]`                              | Prettier write / check.                                                                                   |
+| `npm run lint:docs`                                   | Glossary, persona, and Feature Map ↔ spec parity checks.                                                  |
+| `npm run lint:prompts`                                | Prompt version bumps and golden cases, compared with `origin/main`.                                       |
+| `npm run lint:skills`                                 | Vendored skills ↔ `skills-lock.json` hashes.                                                              |
+| `npm run lint:arch`                                   | dependency-cruiser + ESLint architecture rules.                                                           |
+| `npm run lint:deadcode`                               | knip unused files/exports/dependencies.                                                                   |
+| `npm run docs:state-chart`                            | Regenerate `docs/state-chart.md` from code.                                                               |
+| `npm run docs:generate`                               | Regenerate `docs/USER-GUIDE.md` and `docs/RELEASE-NOTES.md` from specs and git history.                   |
+| `npm test`                                            | All Vitest suites.                                                                                        |
+| `npm run test:unit`                                   | Parser, state machine, Expression Translator, `LoopBudget`, hook, prompt/skill lint, and gate list tests. |
+| `npm run test:model`                                  | `fast-check` model-based state-machine tests.                                                             |
+| `npm run test:cli`                                    | `calc-verify` Feature Map contract + Playwright integration tests.                                        |
+| `npm run test:ui`                                     | Selectors and accessible names in the running app match the Feature Map.                                  |
+| `npm run test:gates`                                  | Breaks each rule in a temporary worktree and requires the matching gate to fail.                          |
+| `npm run test:fuzz`                                   | Playwright + `fast-check` browser fuzzing.                                                                |
+| `npm run verify:cli -- press/type-expression/ask ...` | Drive the running app by Feature Map names.                                                               |
+| `npm run eval:simulate`                               | Run the real evals against a scripted flawed model over a local HTTP server (no key).                     |
+| `npm run eval[:deterministic]`                        | Promptfoo evals on the real pipeline (live if `AI_*` is set; `:deterministic` forces the stub).           |
+| `npm run trace:demo [-- "question" ...]`              | Translate questions with tracing on → `traces/runs.jsonl` (or OTLP).                                      |
+| `npm run harvest:trace -- --list`                     | List failed or retried translations.                                                                      |
+| `npm run harvest:trace -- --trace-id <id>`            | Failing span → regression case in `evals/golden-dataset.yaml`.                                            |
 
 </details>
 
@@ -488,6 +493,7 @@ A reference repo should be clear about what it _doesn't_ prove:
 - **Known PoC shortcuts in the AI feature.** A code review flagged these. They're deliberately left simple here, but you should handle them in a real product:
   - **Input during a pending translation can be overwritten.** Only **All Clear (AC)** cancels an in-flight translation. If the user keeps typing on the keypad (or presses CE) while waiting, the translation result replaces that work when it arrives. Production fix: cancel or ignore the pending request on any state-changing input, or disable the other controls while busy.
   - **No end-to-end deadline.** Each model call times out after 15s, but the browser request has no timeout, and a slow model with retries can take up to `max_model_calls × 15s`. `calc-verify ask` and the UI fuzz test wait 30s, so a slow live model can make them time out even though the app works. Production fix: one overall deadline in `translateQuestion` and a matching `AbortSignal.timeout` on the client fetch.
+- **Gate tests cover the listed violations only.** `test:gates` shows that each check catches one known breach, not every way of breaking the rule. The job is not yet required for merging.
 - **The pre-tool hook is a speed bump, not a wall.** It only sees file-edit tool calls, so an agent with shell access can bypass it. It also does nothing until you [wire it into your agent](docs/agent-adapters.md). Server-side controls (CODEOWNERS + branch protection + CI) are the real enforcement.
 - **CODEOWNERS alone enforces nothing.** It takes effect only when branch protection requires code owner review. GitHub doesn't let authors approve their own pull requests, so a solo maintainer needs a second reviewer or an explicit bypass. Replace the owner if you copy the file.
 - **`src/observability/` and `src/ai/` are Node-only** code that lives under `src/` for import convenience. dependency-cruiser stops the browser UI from importing them. In a larger system they'd be their own packages.
