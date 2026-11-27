@@ -1,11 +1,21 @@
 import { spawn } from 'node:child_process';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..');
+const VITE_BIN = join(REPO_ROOT, 'node_modules', 'vite', 'bin', 'vite.js');
 
 export interface RunningViteServer {
   url: string;
   stop: () => void;
+}
+
+async function isServing(url: string): Promise<boolean> {
+  try {
+    await fetch(url, { signal: AbortSignal.timeout(1000) });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function waitForServer(url: string, timeoutMs = 15000): Promise<void> {
@@ -25,7 +35,11 @@ export async function waitForServer(url: string, timeoutMs = 15000): Promise<voi
 
 export async function startViteServer(port: number, timeoutMs = 15000): Promise<RunningViteServer> {
   const url = `http://localhost:${port}`;
-  const proc = spawn('npx', ['vite', '--port', String(port), '--strictPort'], {
+  if (await isServing(url)) {
+    throw new Error(`Port ${port} is already in use. Stop that server so tests cannot reach it.`);
+  }
+  // Spawned without npx, which would leave Vite running after the signal in stop().
+  const proc = spawn(process.execPath, [VITE_BIN, '--port', String(port), '--strictPort'], {
     cwd: REPO_ROOT,
     stdio: 'ignore',
     env: { ...process.env, AI_FORCE_STUB: '1' },

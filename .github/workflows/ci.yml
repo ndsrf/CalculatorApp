@@ -21,16 +21,23 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # The prompt lint compares against the base commit.
+          fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
 
       - name: Install dependencies
         run: npm ci
+
+      # CI only: needs the network, and a new advisory can fail an unchanged commit.
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
@@ -40,6 +47,14 @@ jobs:
 
       - name: Lint docs and OpenSpec 1:1 governance
         run: npm run lint:docs
+
+      - name: Lint prompt versions and golden cases
+        env:
+          PROMPT_BASE_REF: ${{ github.event_name == 'push' && github.event.before || '' }}
+        run: npm run lint:prompts
+
+      - name: Verify vendored skills against skills-lock.json
+        run: npm run lint:skills
 
       - name: Lint architecture and dependency graph
         run: npm run lint:arch
@@ -53,7 +68,7 @@ jobs:
       - name: Typecheck and build app
         run: npm run build
 
-      - name: Run unit tests (core logic, Expression Translator, guardrails, pre-tool hook)
+      - name: Run unit tests (core logic, Expression Translator, guardrails, hook, prompt and skill lints, test server)
         run: npm run test:unit
 
       - name: Run model-based state machine tests (fast-check)
@@ -61,6 +76,9 @@ jobs:
 
       - name: Run calc-verify contract and integration tests
         run: npm run test:cli
+
+      - name: Run UI vocabulary tests
+        run: npm run test:ui
 
       - name: Run Playwright + fast-check UI fuzzing tests
         run: npm run test:fuzz
@@ -76,7 +94,7 @@ jobs:
 
       - name: Upload verification evidence on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: verification-evidence
           path: |

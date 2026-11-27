@@ -94,3 +94,13 @@ When a model reply fails parser validation, the **Expression Translator** SHALL 
 - **GIVEN** `@persona:casual-user` activated **Translate Question** and the translation is still pending
 - **WHEN** `@persona:casual-user` activates **All Clear (AC)**
 - **THEN** the late translation result is discarded and the **Primary Readout** remains `"0"`
+
+### Requirement: Canonical Control Names
+
+The accessible names of `#natural-language-input` and `[data-action="translate-question"]` SHALL be **Natural Language Input** and **Translate Question**, as listed in `docs/feature-map.md`.
+
+#### Scenario: Controls are found by name
+
+- **GIVEN** the calculator is ready
+- **WHEN** `@persona:casual-user` looks for **Translate Question** by name
+- **THEN** the button carrying that name is `[data-action="translate-question"]` and shows it as its label

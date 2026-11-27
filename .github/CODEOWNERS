@@ -1,26 +1,33 @@
 # Agents may propose changes anywhere, but a human must approve changes to the things that define
 # "correct" for an agent: its rules, its verification harness, its evals, and its gates.
 # NOTE: CODEOWNERS is only enforced when branch protection enables "Require review from Code Owners".
-# Replace @engineering-leads with a real user or @org/team handle.
+# Replace @ndsrf with your own user or @org/team handle if you copy this file.
 
 # Agent rules & context
-/AGENTS.md @engineering-leads
-/.agents/ @engineering-leads
-/docs/feature-map.md @engineering-leads
-/docs/glossary.md @engineering-leads
-/docs/adr/ @engineering-leads
-/prompts/ @engineering-leads
+/AGENTS.md @ndsrf
+/.agents/ @ndsrf
+/skills-lock.json @ndsrf
+/docs/ @ndsrf
+/openspec/specs/ @ndsrf
+/prompts/ @ndsrf
 
 # AI trust boundary (validation, repair loop, budgets, model access)
-/src/ai/ @engineering-leads
+/src/ai/ @ndsrf
 
 # Verification harness, evals & automation
-/tools/calc-verify/ @engineering-leads
-/evals/ @engineering-leads
-/scripts/ @engineering-leads
+/tools/calc-verify/ @ndsrf
+/tests/ @ndsrf
+*.test.ts @ndsrf
+/evals/ @ndsrf
+/scripts/ @ndsrf
 
 # Gates (weakening a linter rule is as dangerous as deleting a test)
-/eslint.config.js @engineering-leads
-/.dependency-cruiser.cjs @engineering-leads
-/knip.json @engineering-leads
-/.github/ @engineering-leads
+/package.json @ndsrf
+/package-lock.json @ndsrf
+/tsconfig.json @ndsrf
+/vite.config.ts @ndsrf
+/vitest.config.ts @ndsrf
+/eslint.config.js @ndsrf
+/.dependency-cruiser.cjs @ndsrf
+/knip.json @ndsrf
+/.github/ @ndsrf

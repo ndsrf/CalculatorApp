@@ -33,7 +33,7 @@ const TEMPLATE = `
       autocomplete="off"
       maxlength="200"
     />
-    <button type="button" data-action="translate-question" aria-busy="false">Ask</button>
+    <button type="button" data-action="translate-question" aria-busy="false">Translate Question</button>
   </div>
 
   <div class="input-row">
@@ -44,7 +44,7 @@ const TEMPLATE = `
       aria-label="Expression Input"
       autocomplete="off"
     />
-    <button type="button" data-action="submit-expression">Run</button>
+    <button type="button" data-action="submit-expression">Submit Expression</button>
   </div>
 
   <div class="keypad" role="group" aria-label="Standard Keypad">

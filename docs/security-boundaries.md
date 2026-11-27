@@ -15,3 +15,4 @@
 
 - `traces/runs.jsonl` records `app.question` and `app.expression` for regression harvesting (`scripts/harvest-trace.ts`).
 - **Zero PII or secrets in traces:** Never attach `AI_API_KEY`, authorization headers, cookies, or user identifiers to OTel span attributes or CI failure artifacts.
+- **Example-app exception:** the raw question is free text that can contain personal data, and this repository records it and uploads `traces/` when CI fails. That is acceptable only because this is an example exercised with demo questions. A real product MUST redact or sample questions, set retention, and keep raw traces out of CI artifacts before harvesting real traffic.
