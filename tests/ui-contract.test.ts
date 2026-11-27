@@ -4,29 +4,32 @@ import { type Browser, chromium, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type RunningViteServer, startViteServer } from '../scripts/dev-server.ts';
 
-const VOCABULARY_PORT = 5175;
+const CONTRACT_PORT = 5175;
 const featureMap = readFileSync(
   join(resolve(import.meta.dirname, '..'), 'docs', 'feature-map.md'),
   'utf-8',
 );
 
-function featureFor(cliKey: string): { name: string; selector: string } {
-  const row = featureMap.match(
-    new RegExp(`^\\|\\s*([^|]+?)\\s*\\|\\s*\`${cliKey}\`\\s*\\|\\s*\`([^\`]+)\``, 'm'),
-  );
-  if (!row) {
+const features = Array.from(
+  featureMap.matchAll(/^\|\s*([^|]+?)\s*\|\s*`([^`]+)`\s*\|\s*`([^`]+)`\s*\|$/gm),
+  ([, name, cliKey, selector]) => ({ name, cliKey, selector }),
+);
+
+function featureFor(cliKey: string): (typeof features)[number] {
+  const feature = features.find((entry) => entry.cliKey === cliKey);
+  if (!feature) {
     throw new Error(`docs/feature-map.md has no row for '${cliKey}'`);
   }
-  return { name: row[1], selector: row[2] };
+  return feature;
 }
 
-describe('UI vocabulary matches the Feature Map', () => {
+describe('UI matches the Feature Map', () => {
   let server: RunningViteServer;
   let browser: Browser;
   let page: Page;
 
   beforeAll(async () => {
-    server = await startViteServer(VOCABULARY_PORT);
+    server = await startViteServer(CONTRACT_PORT);
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage();
     await page.goto(server.url, { waitUntil: 'domcontentloaded' });
@@ -35,6 +38,14 @@ describe('UI vocabulary matches the Feature Map', () => {
   afterAll(async () => {
     await browser?.close();
     server?.stop();
+  });
+
+  it('reads every documented control', () => {
+    expect(features.length).toBeGreaterThanOrEqual(22);
+  });
+
+  it.each(features)('renders $name exactly once at $selector', async ({ selector }) => {
+    expect(await page.locator(selector).count()).toBe(1);
   });
 
   it.each([

@@ -77,7 +77,7 @@ jobs:
       - name: Run calc-verify contract and integration tests
         run: npm run test:cli
 
-      - name: Run UI vocabulary tests
+      - name: Check the running app against the Feature Map
         run: npm run test:ui
 
       - name: Run Playwright + fast-check UI fuzzing tests
@@ -102,3 +102,26 @@ jobs:
             test-results/
           if-no-files-found: ignore
           retention-days: 7
+
+  gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Break each rule and require its gate to fail
+        run: npm run test:gates
