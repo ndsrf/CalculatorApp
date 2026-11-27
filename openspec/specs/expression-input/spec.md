@@ -40,3 +40,13 @@ The calculator SHALL parse and evaluate arithmetic expressions containing `+`, `
 - **GIVEN** `@persona:power-user` has typed an expression or triggered an **Error State**
 - **WHEN** `@persona:power-user` activates **All Clear (AC)**
 - **THEN** the **Expression Input** is emptied, the **Primary Readout** displays `"0"`, and normal operation resumes
+
+### Requirement: Canonical Control Names
+
+The accessible names of `#expression-input` and `[data-action="submit-expression"]` SHALL be **Expression Input** and **Submit Expression**, as listed in `docs/feature-map.md`.
+
+#### Scenario: Controls are found by name
+
+- **GIVEN** the calculator is ready
+- **WHEN** `@persona:power-user` looks for **Submit Expression** by name
+- **THEN** the button carrying that name is `[data-action="submit-expression"]` and shows it as its label

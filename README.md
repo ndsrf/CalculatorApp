@@ -72,15 +72,15 @@ To follow one change through all five stages, see the [walkthrough](#walkthrough
 
 ## Quick Start
 
-**Prerequisites:** Node.js 22+ and npm.
+**Prerequisites:** Node.js 22.22+ and npm.
 
 ```bash
 npm install
 npx playwright install chromium
-npm run check        # runs every gate CI runs, in order
+npm run check        # runs every gate CI runs, in order (CI also audits dependencies)
 ```
 
-You should see every step pass: formatting, doc governance, architecture rules, dead-code scan, state-chart drift, build, 40+ tests (unit, model-based, browser contract, UI fuzzing, hook), and offline evals.
+You should see every step pass: formatting, doc governance, prompt and skill integrity, architecture rules, dead-code scan, state-chart drift, build, 40+ tests (unit, model-based, browser contract, UI fuzzing, hook), and offline evals.
 
 Then start the app and observe it the way an agent does, as structured evidence instead of a visual guess:
 
@@ -139,7 +139,7 @@ Each layer exists because the one before it leaves a specific failure mode open.
 
 - **Problem:** Going straight from a vague prompt to code bakes in unexamined assumptions. Single-pass reviews let clean-looking code hide missing requirements, or the reverse.
 - **How it works:** Before coding, the `grill-with-docs` skill interviews the requester and writes the answers into the Glossary, ADRs, and spec deltas. After coding, the `code-review` skill runs two independent reviewers in parallel. One checks **Standards** (architecture, `AGENTS.md`, code smells) and the other checks **Spec** (`openspec/specs/`, Feature Map, edge cases). Keeping them separate stops one axis from masking the other.
-- **Files:** [`.agents/skills/`](.agents/skills/) (vendored verbatim from [`mattpocock/skills`](https://github.com/mattpocock/skills), pinned by commit and hash in [`skills-lock.json`](skills-lock.json)). `AGENTS.md` maps the skills' upstream default paths onto this repo's paths, so the vendored files never need editing.
+- **Files:** [`.agents/skills/`](.agents/skills/) (vendored verbatim from [`mattpocock/skills`](https://github.com/mattpocock/skills), pinned by commit and hash in [`skills-lock.json`](skills-lock.json)). `npm run lint:skills` fails if a vendored file no longer matches its hash. `AGENTS.md` maps the skills' upstream default paths onto this repo's paths, so the vendored files never need editing.
 
 </details>
 
@@ -149,7 +149,7 @@ Each layer exists because the one before it leaves a specific failure mode open.
 - **Problem:** Prose instructions are advisory. Under pressure, agents import DOM globals into pure logic, reach for `eval()`, call a model straight from the browser, leave dead helpers behind, or edit the test harness to make red checks turn green.
 - **How it works:**
   - `dependency-cruiser` keeps `src/core/` pure, forces `src/ui/` to import only the core barrel, **forbids the browser from importing `src/ai/`** (where keys and model calls live), and keeps `src/ai/` on the core's public API.
-  - ESLint bans `eval()`/`new Function()` **with an error message that points to ADR 001**, so the agent learns _why_ and _what to do instead_. It also blocks browser globals in `src/core/` and warns on restating comments.
+  - ESLint bans `eval()`/`new Function()` **with an error message that points to ADR 001**, so the agent learns _why_ and _what to do instead_. It also blocks browser globals in `src/core/`. Inline comments only raise a warning, because a linter can't judge whether one is necessary.
   - `knip` flags unused files, exports, and dependencies (agents over-generate).
   - A portable **pre-tool hook** blocks edits to `tools/calc-verify/` unless a human sets `ALLOW_VERIFY_EDIT=1`, and blocks spec folders that aren't in the Feature Map. It exits `2` (the common "block" convention), accepts a path argument or an agent-hook JSON payload, normalises `../` tricks, and has its own tests.
 - **Files:** [`.agents/hooks/pre-tool-guard.sh`](.agents/hooks/pre-tool-guard.sh), [`tests/pre-tool-guard.test.ts`](tests/pre-tool-guard.test.ts), [`.dependency-cruiser.cjs`](.dependency-cruiser.cjs), [`eslint.config.js`](eslint.config.js), [`knip.json`](knip.json).
@@ -166,6 +166,8 @@ Each layer exists because the one before it leaves a specific failure mode open.
   3. **Browser fuzzing** (Playwright + `fast-check`): random clicks, malformed expressions, and random questions against the real app and its translation endpoint, asserting zero console/page errors.
   4. **`calc-verify`**, an agent-facing verification CLI (`press`, `type-expression`, `ask`). It speaks only Feature Map names, uses a fresh browser context per run (idempotent), and returns JSON snapshots, PNG screenshots, and Playwright trace ZIPs. A **contract test** fails if the CLI and `docs/feature-map.md` disagree.
 
+  A browser test also checks that text controls carry their Feature Map names, so the UI, specs, and user guide use the same words.
+
   `docs/state-chart.md` is generated from `CALCULATOR_STATE_TRANSITIONS` in code, and CI fails if it drifts.
 
 - **Files:** [`src/core/*.test.ts`](src/core/), [`src/ai/expression-translator.test.ts`](src/ai/expression-translator.test.ts), [`tests/ui-fuzz.test.ts`](tests/ui-fuzz.test.ts), [`tools/calc-verify/`](tools/calc-verify/), [`scripts/generate-state-chart.ts`](scripts/generate-state-chart.ts).
@@ -180,7 +182,7 @@ Each layer exists because the one before it leaves a specific failure mode open.
   - **The model proposes; the parser decides.** The model only translates; it never computes. Every reply is validated by the same safe parser that protects typed input ([ADR 001](docs/adr/001-expression-parser.md)), on the server _and_ again in the browser. Anything else never reaches the user as a result, no matter how the model was tricked.
   - **The user sees what was evaluated.** The translated expression is written into the **Expression Input**.
   - **Model access stays server-side.** Keys never reach the browser, and one small OpenAI-compatible HTTP client replaces vendor SDKs.
-  - **Prompts are versioned assets.** [`prompts/expression-translator.md`](prompts/expression-translator.md) has frontmatter with `id`, `version`, `model_routing.tier` (with a written rationale), and `limits` (`max_model_calls`, `max_tokens`). The limits live next to the prompt they protect, so changing one shows up in the same diff. The frontmatter is never sent to the model.
+  - **Prompts are versioned assets.** [`prompts/expression-translator.md`](prompts/expression-translator.md) has frontmatter with `id`, `version`, `model_routing.tier` (with a written rationale), and `limits` (`max_model_calls`, `max_tokens`). The limits live next to the prompt they protect, so changing one shows up in the same diff. The frontmatter is never sent to the model. `npm run lint:prompts` fails a prompt change that lacks a higher `version`, or a translator change that adds no golden case.
   - **Tier-based routing, not vendor names.** The prompt asks for a `lightweight` model (a narrow task, with a parser as a safety net). Configuration maps the tier to a concrete model (`AI_MODEL_LIGHTWEIGHT`), so switching providers is a config change validated by the same evals.
   - **Evals run the real pipeline.** The Promptfoo provider calls the exact code the app ships (prompt loading, model client, repair loop, core state machine) and grades **what the user would see** in the **Primary Readout**. The golden dataset covers functional cases, edge cases (division by zero must be preserved, not "fixed"), refusals, self-correction, and **safety cases that must always pass** (prompt injection, smuggled code).
   - **Code-graded first.** Correctness here is computable, so assertions are exact and deterministic. LLM-as-judge (`llm-rubric`) is reserved for genuinely subjective output; this feature doesn't need it.
@@ -197,6 +199,7 @@ Each layer exists because the one before it leaves a specific failure mode open.
   - **Every translation is traced.** The dev server emits one OpenTelemetry span per request, with `gen_ai.*` usage (real token counts from the provider), `prompt.id`/`prompt.version`/`prompt.sha` (every result is tied to an exact prompt version), the question and expression, and **business outcomes**: `outcome.translation_status`, `outcome.model_calls_count`, `outcome.retried`, `outcome.circuit_breaker_tripped`. Spans go to `traces/runs.jsonl` or any OTLP collector.
   - **`LoopBudget` is a hard circuit breaker.** The repair loop is written as "retry until valid", which is how agent loops usually look, and the budget is the only thing that stops it. The limits come from the prompt's frontmatter.
   - **Harvesting closes the loop.** `harvest:trace -- --list` shows failed and retried translations. `harvest:trace -- --trace-id <id>` turns one into a regression case in the golden dataset, with provenance (trace, prompt version, model) and a TODO for a human to confirm the expected answer. It's idempotent by trace _and_ by question.
+  - **Harvesting needs real inputs, so treat them as user data.** This repo records raw questions and uploads `traces/` when CI fails, which is fine for an example fed with demo questions. In a real product, redact or sample them, set retention, and keep raw traces out of CI artifacts ([security boundaries](docs/security-boundaries.md)).
 - **Files:** [`src/observability/`](src/observability/), [`scripts/run-traced-demo.ts`](scripts/run-traced-demo.ts), [`scripts/harvest-trace.ts`](scripts/harvest-trace.ts), [`traces/sample-failed-trace.jsonl`](traces/sample-failed-trace.jsonl).
 
 </details>
@@ -207,9 +210,10 @@ Each layer exists because the one before it leaves a specific failure mode open.
 - **Problem:** Logs and archived specs pollute agent context, reformatting churn bloats diffs, and agents can bypass local hooks entirely in remote branches.
 - **How it works:**
   - **Context exclusion:** [`.cursorignore`](.cursorignore) is the reference list of paths agents shouldn't read. See [`docs/agent-adapters.md`](docs/agent-adapters.md) to mirror it in your tool.
-  - **CODEOWNERS:** human approval is required for changes to anything that defines "correct", including agent rules, prompts, the AI trust boundary (`src/ai/`), the verifier, evals, scripts, lint configs, and CI. _It is only enforced once branch protection turns on "Require review from Code Owners"._
+  - **CODEOWNERS:** human approval is required for changes to anything that defines "correct", including agent rules, specs, docs, prompts, the AI trust boundary (`src/ai/`), tests, the verifier, evals, scripts, gate configs, and CI. _It is only enforced once branch protection turns on "Require review from Code Owners"._
   - **PR template:** evidence-based handoff, with Feature Map links, spec deltas, `calc-verify` snapshots, eval results for prompt changes, and an **AI Assistance** section stating what an agent generated and what a human verified.
   - **CI least privilege:** `permissions: contents: read`, plus failure evidence (traces, screenshots) uploaded as artifacts.
+  - **Supply chain:** CI actions are pinned by commit, `npm audit` fails the build on high or critical findings, and Dependabot proposes updates.
   - **Prettier:** deterministic formatting, so diffs show only real changes.
 - **Files:** [`.github/`](.github/), [`.prettierrc`](.prettierrc), [`.cursorignore`](.cursorignore).
 
@@ -241,6 +245,9 @@ A rule you have never seen fail is a rule you are only hoping is enforced. Viola
 |  2   | Add `import '../ai/translate-service.ts';` to `src/ui/calculator-ui.ts`                                                                                                                               | `npm run lint:arch`                                                   | dependency-cruiser: the browser must never import server AI code |
 |  4   | **Trust the model:** in `src/ai/expression-translator.ts`, return `{ status: 'translated', expression: parsed.expression, ...usage }` right after the refusal check, skipping `checkExpressionSyntax` | `npm run eval`                                                        | Safety cases fail: "Untrusted output was accepted"               |
 |  4   | **Shrink the retry budget:** set `max_model_calls: 1` in `prompts/expression-translator.md`                                                                                                           | `npm run eval`                                                        | The self-correction case can no longer recover                   |
+|  4   | Edit the body of `prompts/expression-translator.md` without touching `version`                                                                                                                        | `npm run lint:prompts`                                                | Prompt changed without a version bump or a new golden case       |
+|  2   | Add a line to `.agents/skills/grilling/SKILL.md`                                                                                                                                                      | `npm run lint:skills`                                                 | Vendored skill no longer matches `skills-lock.json`              |
+|  1   | Rename the **Submit Expression** button to "Run" in `src/ui/calculator-ui.ts`                                                                                                                         | `npm run test:ui`                                                     | Control no longer carries its Feature Map name                   |
 |  3   | Change `data-op="add"` to `data-op="plus"` in `src/ui/calculator-ui.ts`                                                                                                                               | `npm run test:cli`                                                    | UI no longer matches the Feature Map contract                    |
 |  5   | Pretend to be an agent editing the verifier                                                                                                                                                           | `.agents/hooks/pre-tool-guard.sh tools/calc-verify/index.ts; echo $?` | Pre-tool hook blocks with exit `2`                               |
 
@@ -359,7 +366,7 @@ npm run eval                                 # the harvested regression now runs
 git restore evals/golden-dataset.yaml        # undo the sample harvest (only if you had no other edits there)
 ```
 
-The sample trace records a real-world style failure: an older prompt version on a small model kept answering `12 * 3 = 36` for "What is a dozen times 3?" until the circuit breaker tripped. Harvesting it makes that question part of every future eval run.
+The sample trace records a real-world style failure: an older prompt version on a small model kept answering `12 * 3 = 36` for "What is a dozen times 3?" until the circuit breaker tripped. Harvesting it makes that question part of every future eval run. Real harvested questions are user data: review them for personal information before committing them.
 
 ---
 
@@ -401,9 +408,11 @@ Decide for every check where it runs. Local checks give fast feedback; only serv
 | `npm run check` (all rows below)                              |    ✅     |   ✅   | Single local command for the same gates CI runs                                  |
 | `format:check`                                                |    ✅     |   ✅   | Formatting drift                                                                 |
 | `lint:docs`                                                   |    ✅     |   ✅   | Banned synonyms, unknown personas, broken 1:1 spec parity                        |
+| `lint:prompts`, `lint:skills`                                 |    ✅     |   ✅   | Unversioned prompt changes, missing golden cases, edited vendored skills         |
+| `npm audit` (not part of `npm run check`)                     | On demand |   ✅   | High or critical dependency advisories                                           |
 | `lint:arch`, `lint:deadcode`                                  |    ✅     |   ✅   | Boundary violations (incl. browser → AI), `eval`, DOM globals in core, dead code |
 | State-chart drift                                             |    ✅     |   ✅   | `docs/state-chart.md` out of sync with code                                      |
-| `build`, `test:unit`, `test:model`, `test:cli`, `test:fuzz`   |    ✅     |   ✅   | Types, logic, invariants, translator loop, Feature Map contract, runtime errors  |
+| `build` and the `test:*` suites                               |    ✅     |   ✅   | Types, logic, invariants, translator loop, Feature Map contract, runtime errors  |
 | `eval`                                                        |    ✅     |   ✅   | Translation correctness, refusals, self-correction, injection safety, latency    |
 | CODEOWNERS + PR template                                      |  Review   | GitHub | Human approval on rules, prompts, AI trust boundary, harness, evals, gates       |
 
@@ -416,14 +425,17 @@ Decide for every check where it runs. Local checks give fast feedback; only serv
 | `npm run dev` / `build`                               | Vite dev server with `/api/translate` (`:5173`) / typecheck + production bundle.                |
 | `npm run format[:check]`                              | Prettier write / check.                                                                         |
 | `npm run lint:docs`                                   | Glossary, persona, and Feature Map ↔ spec parity checks.                                        |
+| `npm run lint:prompts`                                | Prompt version bumps and golden cases, compared with `origin/main`.                             |
+| `npm run lint:skills`                                 | Vendored skills ↔ `skills-lock.json` hashes.                                                    |
 | `npm run lint:arch`                                   | dependency-cruiser + ESLint architecture rules.                                                 |
 | `npm run lint:deadcode`                               | knip unused files/exports/dependencies.                                                         |
 | `npm run docs:state-chart`                            | Regenerate `docs/state-chart.md` from code.                                                     |
 | `npm run docs:generate`                               | Regenerate `docs/USER-GUIDE.md` and `docs/RELEASE-NOTES.md` from specs and git history.         |
 | `npm test`                                            | All Vitest suites.                                                                              |
-| `npm run test:unit`                                   | Parser, state machine, Expression Translator, `LoopBudget`, and pre-tool hook tests.            |
+| `npm run test:unit`                                   | Parser, state machine, Expression Translator, `LoopBudget`, hook, and prompt/skill lint tests.  |
 | `npm run test:model`                                  | `fast-check` model-based state-machine tests.                                                   |
 | `npm run test:cli`                                    | `calc-verify` Feature Map contract + Playwright integration tests.                              |
+| `npm run test:ui`                                     | Accessible names of text controls match the Feature Map.                                        |
 | `npm run test:fuzz`                                   | Playwright + `fast-check` browser fuzzing.                                                      |
 | `npm run verify:cli -- press/type-expression/ask ...` | Drive the running app by Feature Map names.                                                     |
 | `npm run eval:simulate`                               | Run the real evals against a scripted flawed model over a local HTTP server (no key).           |
@@ -477,7 +489,7 @@ A reference repo should be clear about what it _doesn't_ prove:
   - **Input during a pending translation can be overwritten.** Only **All Clear (AC)** cancels an in-flight translation. If the user keeps typing on the keypad (or presses CE) while waiting, the translation result replaces that work when it arrives. Production fix: cancel or ignore the pending request on any state-changing input, or disable the other controls while busy.
   - **No end-to-end deadline.** Each model call times out after 15s, but the browser request has no timeout, and a slow model with retries can take up to `max_model_calls × 15s`. `calc-verify ask` and the UI fuzz test wait 30s, so a slow live model can make them time out even though the app works. Production fix: one overall deadline in `translateQuestion` and a matching `AbortSignal.timeout` on the client fetch.
 - **The pre-tool hook is a speed bump, not a wall.** It only sees file-edit tool calls, so an agent with shell access can bypass it. It also does nothing until you [wire it into your agent](docs/agent-adapters.md). Server-side controls (CODEOWNERS + branch protection + CI) are the real enforcement.
-- **CODEOWNERS is a template.** Replace `@engineering-leads` with a real owner, and note that it doesn't cover everything that affects a gate (for example `tests/`, `openspec/specs/`, or `package.json`).
+- **CODEOWNERS alone enforces nothing.** It takes effect only when branch protection requires code owner review. GitHub doesn't let authors approve their own pull requests, so a solo maintainer needs a second reviewer or an explicit bypass. Replace the owner if you copy the file.
 - **`src/observability/` and `src/ai/` are Node-only** code that lives under `src/` for import convenience. dependency-cruiser stops the browser UI from importing them. In a larger system they'd be their own packages.
 - **Model-based testing is not formal verification.** `fast-check` explores many random paths, not all of them. For distributed or concurrent designs, consider a model checker such as TLA+ at design time.
 - **Context-exclusion files are tool-specific.** There is no universal standard yet (see the adapters guide).

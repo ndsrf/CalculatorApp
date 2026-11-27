@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.22.0"
   },
   "description": "Provider-agnostic reference repository for AI-native engineering practices, using a deliberately tiny Calculator App",
   "scripts": {
@@ -14,6 +14,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint:docs": "tsx scripts/lint-docs.ts",
+    "lint:prompts": "tsx scripts/check-prompts.ts",
+    "lint:skills": "tsx scripts/check-skills.ts",
     "lint:arch": "depcruise src --config .dependency-cruiser.cjs && eslint src",
     "lint:deadcode": "knip",
     "docs:state-chart": "tsx scripts/generate-state-chart.ts",
@@ -21,15 +23,16 @@
     "harvest:trace": "tsx scripts/harvest-trace.ts",
     "trace:demo": "tsx scripts/run-traced-demo.ts",
     "test": "vitest run",
-    "test:unit": "vitest run src/core/parser.test.ts src/core/calculator.test.ts src/ai/expression-translator.test.ts src/observability/guardrails.test.ts tests/pre-tool-guard.test.ts",
+    "test:unit": "vitest run src/core/parser.test.ts src/core/calculator.test.ts src/ai/expression-translator.test.ts src/observability/guardrails.test.ts tests/pre-tool-guard.test.ts tests/check-prompts.test.ts tests/check-skills.test.ts tests/dev-server.test.ts",
     "test:model": "vitest run src/core/calculator.model.test.ts",
     "test:cli": "vitest run tools/calc-verify/tests/",
+    "test:ui": "vitest run tests/ui-vocabulary.test.ts",
     "test:fuzz": "vitest run tests/ui-fuzz.test.ts",
     "verify:cli": "tsx tools/calc-verify/index.ts",
     "eval": "tsx scripts/run-eval.ts",
     "eval:deterministic": "tsx scripts/run-eval.ts --deterministic",
     "eval:simulate": "tsx scripts/simulate-eval.ts",
-    "check": "npm run format:check && npm run lint:docs && npm run lint:arch && npm run lint:deadcode && npm run docs:state-chart && git diff --exit-code docs/state-chart.md && npm run build && npm test && npm run eval:deterministic"
+    "check": "npm run format:check && npm run lint:docs && npm run lint:prompts && npm run lint:skills && npm run lint:arch && npm run lint:deadcode && npm run docs:state-chart && git diff --exit-code docs/state-chart.md && npm run build && npm test && npm run eval:deterministic"
   },
   "devDependencies": {
     "@opentelemetry/api": "^1.10.0",
@@ -47,14 +50,13 @@
     "knip": "^6.48.0",
     "playwright": "^1.50.0",
     "prettier": "^3.10.1",
-    "promptfoo": "^0.109.0",
+    "promptfoo": "^0.126.0",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3",
     "vite": "^6.1.0",
-    "vitest": "^3.0.5"
+    "vitest": "^4.1.12"
   },
   "allowScripts": {
-    "better-sqlite3@11.10.0": true,
     "esbuild@0.28.2": true,
     "esbuild@0.25.12": true
   }

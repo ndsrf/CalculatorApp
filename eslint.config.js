@@ -8,7 +8,7 @@ const localArchitecturePlugin = {
         type: 'suggestion',
         docs: {
           description:
-            'Discourage inline explanatory comments in src/; capture behavior and rationale in openspec/specs/ instead.',
+            'Flag inline comments in src/ for review; behavior and decisions belong in specs and ADRs.',
         },
         schema: [],
       },
@@ -28,7 +28,7 @@ const localArchitecturePlugin = {
               context.report({
                 loc: comment.loc,
                 message:
-                  'Avoid inline explanatory comments in src/ (AGENTS.md §4). Document behavioral specs in openspec/specs/ or architectural rationale in docs/adr/ instead.',
+                  'Inline comment: keep it only for a non-obvious invariant, edge case, or rationale (AGENTS.md §7). Behavior belongs in openspec/specs/, decisions in docs/adr/.',
               });
             }
           },

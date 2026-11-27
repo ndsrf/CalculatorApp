@@ -29,5 +29,5 @@
 ## Automated Quality Gates
 
 - [ ] `npm run check` passes locally (runs every gate below, same as CI)
-  - `format:check` · `lint:docs` · `lint:arch` · `lint:deadcode` · state-chart drift · `build` · `npm test` · `eval:deterministic`
+  - `format:check` · `lint:docs` · `lint:prompts` · `lint:skills` · `lint:arch` · `lint:deadcode` · state-chart drift · `build` · `npm test` · `eval:deterministic`
 - [ ] No changes to `tools/calc-verify/`, `evals/`, lint configs or `AGENTS.md` — or, if there are, they are called out above for CODEOWNERS review
