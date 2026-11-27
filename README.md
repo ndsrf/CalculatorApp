@@ -1,6 +1,6 @@
 # AI-Native Engineering in Practice
 
-[![CI](https://github.com/ndsrf/CalculatorApp/actions/workflows/ci.yml/badge.svg)](https://github.com/ndsrf/CalculatorApp/actions/workflows/ci.yml)
+[![CI](https://github.com/ndsrf/CalculatorApp/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/ndsrf/CalculatorApp/actions/workflows/ci.yml)
 
 A small, runnable reference repository that shows how general engineering principles work in practice when:
 
