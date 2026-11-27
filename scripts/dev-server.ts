@@ -39,7 +39,9 @@ export async function startViteServer(port: number, timeoutMs = 15000): Promise<
     throw new Error(`Port ${port} is already in use. Stop that server so tests cannot reach it.`);
   }
   // Spawned without npx, which would leave Vite running after the signal in stop().
-  const proc = spawn(process.execPath, [VITE_BIN, '--port', String(port), '--strictPort'], {
+  // Vite allows one dev server per project by default, but test files run theirs side by side.
+  const args = [VITE_BIN, '--port', String(port), '--strictPort', '--bypass-lock'];
+  const proc = spawn(process.execPath, args, {
     cwd: REPO_ROOT,
     stdio: 'ignore',
     env: { ...process.env, AI_FORCE_STUB: '1' },

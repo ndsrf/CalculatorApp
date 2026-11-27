@@ -7,6 +7,13 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # Node types must describe the runtime in .nvmrc. Move both together.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+      # @typescript-eslint requires TypeScript below 6.1. Remove once it supports newer releases.
+      - dependency-name: typescript
+        versions: ['>=6.1.0']
   # Also moves the pinned action commits and their version comments.
   - package-ecosystem: github-actions
     directory: /

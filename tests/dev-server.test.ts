@@ -13,6 +13,17 @@ async function isServing(url: string): Promise<boolean> {
 }
 
 describe('test dev server', () => {
+  it('runs beside another dev server of this project', async () => {
+    const first = await startViteServer(LIFECYCLE_PORT);
+    try {
+      const second = await startViteServer(LIFECYCLE_PORT + 1);
+      second.stop();
+    } finally {
+      first.stop();
+    }
+    await expect.poll(() => isServing(first.url), { timeout: 5000 }).toBe(false);
+  }, 40000);
+
   it('refuses a port that is already serving, and frees the port when stopped', async () => {
     const server = await startViteServer(LIFECYCLE_PORT);
     try {

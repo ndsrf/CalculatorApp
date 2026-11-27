@@ -131,7 +131,7 @@ export const GATE_VIOLATIONS: readonly GateViolation[] = [
     tryThis: 'Change `data-op="add"` to `data-op="plus"` in `src/ui/calculator-ui.ts`',
     command: 'npm run test:ui',
     edits: [{ file: 'src/ui/calculator-ui.ts', find: 'data-op="add"', replace: 'data-op="plus"' }],
-    expected: { output: [/FAIL .*renders 'Add Operator' exactly once/] },
+    expected: { output: [/FAIL .*renders Add Operator exactly once/] },
   },
   {
     idea: 5,

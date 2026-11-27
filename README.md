@@ -72,7 +72,7 @@ To follow one change through all five stages, see the [walkthrough](#walkthrough
 
 ## Quick Start
 
-**Prerequisites:** Node.js 22.22+ and npm.
+**Prerequisites:** Node.js 22.22+ and npm 11+ (`npm install --global npm@11`; Node 22 ships with npm 10).
 
 ```bash
 npm install
